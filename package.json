@@ -18,7 +18,9 @@
     "dev:web": "vite --config vite.config.ts",
     "build": "vite build --config vite.config.ts",
     "test": "node --test test/inventory.test.js",
+    "lint:commits": "commitlint --from HEAD~1 --to HEAD --verbose",
     "start": "node server/index.js",
+    "prepare": "husky",
     "fetch-schema": "node scripts/fetch-schema.mjs",
     "filter-schema": "node scripts/filter-schema.mjs",
     "prefetch-images": "node scripts/prefetch-images.mjs"
@@ -37,10 +39,13 @@
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.6.2",
+    "husky": "^9.1.7",
     "postcss": "^8.5.32",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.6.3",

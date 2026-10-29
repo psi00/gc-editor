@@ -25,6 +25,9 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
   `inventory.txt`, never the live file.
 - `npm test` uses Node's built-in test runner for VDF and inventory round-trips.
   No extra dependencies.
+- Commit messages must follow Conventional Commits. `commitlint` runs from the
+  husky `commit-msg` hook, which `npm install` sets up through the `prepare`
+  script. Use prefixes such as `fix(rcon): ...` or `ci(release): ...`.
 
 ## Project layout
 

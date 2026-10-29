@@ -1,0 +1,2 @@
+# husky hooks must stay LF; a CRLF checkout breaks the args passed to commitlint
+.husky/* text eol=lf
