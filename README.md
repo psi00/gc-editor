@@ -9,6 +9,8 @@ An inventory web editor for [GT-610's csgo_gc](https://github.com/GT-610/csgo-gc
 - RCON enabled within `csgo_gc/config.txt` in your game installation
 
 ## Usage
+Install the latest release from the Releases tab in GitHub, or `git clone` this repository.
+
 To run in production mode:
 ```bash
 npm ci

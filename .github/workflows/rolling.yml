@@ -1,0 +1,58 @@
+name: rolling release
+
+# republishes the same `rolling` pre-release on every push to master, so the
+# release link never changes but always points at the newest passing build.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rolling
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noemit
+      - run: npm run build
+
+      # prebuilt, runnable bundle: server has zero deps, so nothing to install
+      - name: Package
+        run: |
+          test -f dist/web/index.html
+          zip -qr gc-editor-rolling.zip \
+            dist server scripts package.json package-lock.json README.md LICENSE
+
+      # move the tag so the release's source archives stay current
+      - name: Retag
+        run: |
+          git tag -f rolling "$GITHUB_SHA"
+          git push -f origin refs/tags/rolling
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse --short HEAD)
+          notes="rolling build $sha on $(date -u +%Y-%m-%dT%H:%MZ). Unzip, then npm start. Run npm run fetch-schema once for offline catalogue data."
+          if gh release view rolling >/dev/null 2>&1; then
+            gh release edit rolling --title "rolling ($sha)" --notes "$notes" --prerelease
+          else
+            gh release create rolling --verify-tag --title "rolling ($sha)" --notes "$notes" --prerelease
+          fi
+          gh release upload rolling gc-editor-rolling.zip --clobber
