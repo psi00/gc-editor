@@ -17,7 +17,7 @@
     "dev:server": "node server/index.js",
     "dev:web": "vite --config vite.config.ts",
     "build": "vite build --config vite.config.ts",
-    "test": "node --test test/",
+    "test": "node --test test/inventory.test.js test/custom-css.test.js",
     "lint:commits": "commitlint --from HEAD~1 --to HEAD --verbose",
     "start": "node server/index.js",
     "prepare": "husky",
