@@ -36,7 +36,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         <div className="toast" aria-live="polite">
           {items.map((item) => (
             <div key={item.id} className={cn('toast-item', item.tone === 'err' && 'err', item.tone === 'ok' && 'ok')} role="status">
-              <span className={cn('mt-0.5 grid size-6 shrink-0 place-items-center rounded-full', item.tone === 'err' ? 'bg-[#f44336]/15 text-[#ff8a80]' : item.tone === 'info' ? 'bg-white/10 text-white/70' : 'bg-primary/15 text-primary')}>
+              <span className={cn('mt-0.5 grid size-6 shrink-0 place-items-center rounded-full', item.tone === 'err' ? 'bg-err/15 text-err-soft' : item.tone === 'info' ? 'bg-white/10 text-white/70' : 'bg-primary/15 text-primary')}>
                 {item.tone === 'err' ? <CircleAlert className="size-3.5" /> : item.tone === 'info' ? <Info className="size-3.5" /> : <Check className="size-3.5" />}
               </span>
               <span className="min-w-0">

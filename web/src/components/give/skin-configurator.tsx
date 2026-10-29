@@ -9,7 +9,7 @@ import {
 } from '../../lib/catalog'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
 import { Input } from '../ui/input'
 import { Slider } from '../ui/slider'
 import { SafeImage } from '../common/safe-image'
@@ -117,7 +117,7 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl overflow-hidden p-0">
+      <DialogContent aria-describedby={undefined} className="max-w-4xl overflow-hidden p-0">
         <div className="item-dialog-grid" style={{ '--accent': accent } as CSSProperties}>
           <div className="dialog-art">
             <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-1.5">
@@ -186,7 +186,7 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                     value={seedText}
                     onChange={(event) => setSeedText(event.target.value)}
                     inputMode="numeric"
-                    className={cn('h-9 text-xs', !seedValid && 'border-[#e02d2f]/70')}
+                    className={cn('h-9 text-xs', !seedValid && 'border-err-strong/70')}
                     aria-invalid={!seedValid}
                   />
                 </label>
@@ -199,7 +199,7 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                       inputMode="numeric"
                       placeholder={souvenir ? 'souvenir' : 'empty = none'}
                       disabled={souvenir}
-                      className={cn('h-9 text-xs', !stattrakValid && 'border-[#e02d2f]/70')}
+                      className={cn('h-9 text-xs', !stattrakValid && 'border-err-strong/70')}
                       aria-invalid={!stattrakValid}
                     />
                   </label>
@@ -218,8 +218,8 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                   </label>
                 )}
               </div>
-              {!seedValid && <p className="text-[11px] text-[#e57373]">Seed must be a whole number between 0 and 999.</p>}
-              {!stattrakValid && <p className="text-[11px] text-[#e57373]">StatTrak must be a whole number, or empty for none.</p>}
+              {!seedValid && <p className="text-[11px] text-err-soft">Seed must be a whole number between 0 and 999.</p>}
+              {!stattrakValid && <p className="text-[11px] text-err-soft">StatTrak must be a whole number, or empty for none.</p>}
 
               <label className="block">
                 <span className="field-label">Name tag</span>
@@ -227,7 +227,7 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                   value={customName}
                   onChange={(event) => setCustomName(event.target.value)}
                   placeholder="name tag text"
-                  className={cn('h-9 text-xs', !nameValid && 'border-[#e02d2f]/70')}
+                  className={cn('h-9 text-xs', !nameValid && 'border-err-strong/70')}
                   maxLength={64}
                 />
               </label>
@@ -293,7 +293,7 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                 </div>
               )}
               {result && (!result.ok || /^err/i.test(result.saved ?? '')) && (
-                <p className="text-[11px] leading-relaxed text-[#ffd740]/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
+                <p className="text-[11px] leading-relaxed text-warn-soft/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
               )}
 
               <div className="flex flex-wrap items-center gap-2 pt-1">

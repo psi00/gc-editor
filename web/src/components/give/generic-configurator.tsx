@@ -133,7 +133,7 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
                     value={countText}
                     onChange={(event) => setCountText(event.target.value)}
                     inputMode="numeric"
-                    className={cn('h-9 text-xs', !countValid && 'border-[#e02d2f]/70')}
+                    className={cn('h-9 text-xs', !countValid && 'border-err-strong/70')}
                     aria-invalid={!countValid}
                   />
                 </label>
@@ -144,14 +144,14 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
                       value={musicText}
                       onChange={(event) => setMusicText(event.target.value)}
                       inputMode="numeric"
-                      className={cn('h-9 text-xs', !musicValid && 'border-[#e02d2f]/70')}
+                      className={cn('h-9 text-xs', !musicValid && 'border-err-strong/70')}
                       aria-invalid={!musicValid}
                     />
                   </label>
                 )}
               </div>
-              {!countValid && <p className="text-[11px] text-[#e57373]">Quantity must be a whole number between 1 and 100.</p>}
-              {!musicValid && <p className="text-[11px] text-[#e57373]">Music kit id must be a positive whole number.</p>}
+              {!countValid && <p className="text-[11px] text-err-soft">Quantity must be a whole number between 1 and 100.</p>}
+              {!musicValid && <p className="text-[11px] text-err-soft">Music kit id must be a positive whole number.</p>}
 
               <label className="block">
                 <span className="field-label">Name tag (optional)</span>
@@ -186,7 +186,7 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
                 </div>
               )}
               {result && (!result.ok || /^err/i.test(result.saved ?? '')) && (
-                <p className="text-[11px] leading-relaxed text-[#ffd740]/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
+                <p className="text-[11px] leading-relaxed text-warn-soft/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
               )}
 
               <div className="flex flex-wrap items-center gap-2 pt-1">

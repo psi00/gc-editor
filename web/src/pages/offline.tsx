@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  CircleAlert, Database, FileText, FolderOpen, Grid2X2, History, List, Loader2, RotateCcw, Save, SlidersHorizontal, SquareDashedMousePointer, Trash2, TriangleAlert, X,
+  CircleAlert, FileText, FolderOpen, Grid2X2, History, List, Loader2, RotateCcw, Save, SlidersHorizontal, SquareDashedMousePointer, Trash2, TriangleAlert, X,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { useReport } from '../lib/report'
@@ -437,7 +437,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
             <p className="mt-1 text-[11px] text-muted-foreground">
               {loading ? 'Reading inventory.txt…' : `${items.length} item${items.length === 1 ? '' : 's'}`}
               {' · '}
-              {dirty ? <span className="text-[#ffd740]">unsaved edits</span> : 'in sync with disk'}
+              {dirty ? <span className="text-warn-soft">unsaved edits</span> : 'in sync with disk'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -582,7 +582,10 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
               loading={showSkeletons}
               onOpen={(card) => {
                 if (selecting) toggleSelect(Number(card.id))
-                else setSelectedId(Number(card.id))
+                else {
+                  setSelectedId(Number(card.id))
+                  setItemOpen(true)
+                }
               }}
               onSelect={(card) => toggleSelect(Number(card.id))}
               selectable={selecting}
@@ -611,7 +614,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
           onAttr={(key, value) => updateAttribute(selected.id, key, value)}
           onPosition={(value) => updatePosition(selected.id, value)}
           onDelete={() => {
-            setSelectedId(null)
+            setItemOpen(false)
             setConfirm({ type: 'delete', item: selected })
           }}
         />
@@ -662,7 +665,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
             ) : (
               <>
                 The items list is empty. Saving now writes an empty <span className="font-mono">items</span> block and keeps only
-                the preserved sections. A timestamped backup is still created first.
+                the preserved sections. The current file is copied aside first.
               </>
             )}
           </DialogDescription>
@@ -708,7 +711,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
               <Loader2 className="size-3.5 animate-spin" />Reading backups…
             </p>
           ) : backupsError ? (
-            <p className="mt-4 text-[11px] text-[#e57373]">{backupsError}</p>
+            <p className="mt-4 text-[11px] text-err-soft">{backupsError}</p>
           ) : backups.length === 0 ? (
             <p className="mt-4 text-[11px] text-muted-foreground">No backups yet — saving creates the first one.</p>
           ) : (

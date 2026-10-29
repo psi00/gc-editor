@@ -295,7 +295,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
         </>
       }
     >
-      <p>The editor works offline, but the catalogue needs a one-time online fetch:</p>
+      <p>Run this once while online to fill the catalogue:</p>
       <pre className="log-surface mt-3 text-left">{'npm run fetch-schema\nnpm run prefetch-images'}</pre>
       <p className="mt-2 text-xs">Both write to gitignored <span className="font-mono">data/</span> and <span className="font-mono">imgs/</span>. Nothing is fetched at runtime.</p>
     </EmptyState>
@@ -325,10 +325,10 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
 
       <main className="page-shell pb-16 pt-7">
         {rconHealth === 'auth' && (
-          <div className="mb-5 flex flex-col gap-3 rounded-xl border border-[#f44336]/30 bg-[#f44336]/[.06] px-4 py-3 sm:flex-row sm:items-center">
+          <div className="mb-5 flex flex-col gap-3 rounded-xl border border-err/30 bg-err/[.06] px-4 py-3 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 items-start gap-3">
-              <CircleAlert className="mt-0.5 size-4 shrink-0 text-[#e57373]" />
-              <p className="min-w-0 text-xs leading-relaxed text-[#e57373]">
+              <CircleAlert className="mt-0.5 size-4 shrink-0 text-err-soft" />
+              <p className="min-w-0 text-xs leading-relaxed text-err-soft">
                 RCON auth failed — gives will return ERR until the password in Settings matches the GC. An empty
                 password in config.txt accepts anything.
               </p>
@@ -383,7 +383,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
                   title="Could not load this category"
                   action={<Button onClick={() => setReloadKey((key) => key + 1)}><RotateCcw className="size-4" />Retry</Button>}
                 >
-                  <span className="font-mono text-xs text-[#e57373]">{error}</span>
+                  <span className="font-mono text-xs text-err-soft">{error}</span>
                 </EmptyState>
               )}
 
@@ -476,7 +476,7 @@ function BrowseOverview({ weapons, counts, loading, onPick }: {
           <button
             key={row.id}
             onClick={() => onPick(row.id)}
-            className="flex flex-col items-start gap-1 rounded-xl border border-white/[.07] bg-[rgba(27,29,36,.75)] p-4 text-left transition hover:border-white/20 hover:bg-[#23262d]"
+            className="flex flex-col items-start gap-1 rounded-xl border border-white/[.07] bg-card/75 p-4 text-left transition hover:border-white/20 hover:bg-card-hover"
           >
             <span className="text-sm font-medium text-foreground">{row.label}</span>
             <span className="num font-mono text-2xl leading-tight text-foreground/80">
@@ -554,7 +554,7 @@ function RawGivePanel() {
               value={def}
               onChange={(event) => setDef(event.target.value)}
               inputMode="numeric"
-              className={cn('h-9 text-xs', !defValid && 'border-[#e02d2f]/70')}
+              className={cn('h-9 text-xs', !defValid && 'border-err-strong/70')}
               aria-invalid={!defValid}
             />
           </label>
@@ -564,13 +564,13 @@ function RawGivePanel() {
               value={countText}
               onChange={(event) => setCountText(event.target.value)}
               inputMode="numeric"
-              className={cn('h-9 text-xs', !countValid && 'border-[#e02d2f]/70')}
+              className={cn('h-9 text-xs', !countValid && 'border-err-strong/70')}
               aria-invalid={!countValid}
             />
           </label>
         </div>
-        {!defValid && <p className="mt-2 text-[11px] text-[#e57373]">Def index must be a positive whole number.</p>}
-        {!countValid && <p className="mt-2 text-[11px] text-[#e57373]">Count must be between 1 and 100.</p>}
+        {!defValid && <p className="mt-2 text-[11px] text-err-soft">Def index must be a positive whole number.</p>}
+        {!countValid && <p className="mt-2 text-[11px] text-err-soft">Count must be between 1 and 100.</p>}
 
         <label className="mt-4 flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
           <Checkbox checked={autosave} onCheckedChange={(checked) => setAutosave(checked === true)} />
