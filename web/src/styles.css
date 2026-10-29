@@ -164,8 +164,17 @@ button:disabled { cursor: not-allowed; }
 .empty-icon { display: grid; place-items: center; width: 56px; height: 56px; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; background: rgba(255,255,255,.035); color: hsl(var(--primary)); }
 
 /* configurator dialog */
+.dialog-overlay[data-state="open"] { animation: dialog-fade-in .18s var(--ease-out); }
+.dialog-overlay[data-state="closed"] { animation: dialog-fade-out .14s var(--ease-out); }
+.dialog-surface[data-state="open"] { animation: dialog-in .18s var(--ease-out); }
+.dialog-surface[data-state="closed"] { animation: dialog-out .14s var(--ease-out); }
+@keyframes dialog-fade-in { from { opacity: 0; } }
+@keyframes dialog-fade-out { to { opacity: 0; } }
+/* the translate pair matches the -translate-x/y-1/2 utilities on the surface */
+@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, -50%) scale(.97); } }
+@keyframes dialog-out { to { opacity: 0; transform: translate(-50%, -50%) scale(.97); } }
 .item-dialog-grid { display: grid; grid-template-columns: 1.05fr 1fr; }
-.dialog-art { position: relative; display: grid; min-height: 545px; place-items: center; overflow: hidden; padding: 20px; border-right: 1px solid rgba(255,255,255,.06); background: linear-gradient(to top, color-mix(in srgb, var(--accent) 36%, transparent) 0%, transparent 78%), #15171c; }
+.dialog-art { position: relative; display: grid; min-height: 545px; place-items: center; overflow: hidden; padding: 20px; border-right: 1px solid rgba(255,255,255,.06); background: linear-gradient(to top, color-mix(in srgb, var(--accent) 36%, transparent) 0%, transparent 78%), hsl(var(--surface-sunken)); }
 .dialog-art img { position: relative; width: 104%; max-width: none; max-height: 390px; object-fit: contain; filter: drop-shadow(0 30px 25px rgba(0,0,0,.42)); transform: rotate(-2.5deg); }
 .dialog-art-sm { min-height: 380px; }
 .dialog-art-sm img { width: 82%; max-height: 250px; }

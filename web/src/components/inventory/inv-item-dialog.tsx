@@ -19,6 +19,7 @@ const MANAGED_ATTRS = new Set(['7', '8', '80', '81', '111'])
 
 type InventoryItemDialogProps = {
   item: InvItem
+  open: boolean
   resolved?: ResolvedInventory
   onClose: () => void
   onName: (value: string) => void
@@ -28,7 +29,7 @@ type InventoryItemDialogProps = {
 }
 
 export function InventoryItemDialog({
-  item, resolved, onClose, onName, onAttr, onPosition, onDelete,
+  item, open, resolved, onClose, onName, onAttr, onPosition, onDelete,
 }: InventoryItemDialogProps) {
   const isGlove = resolved?.isGlove ?? isGloveDef(item.def_index)
   const paint = itemPaint(item)
@@ -118,7 +119,7 @@ export function InventoryItemDialog({
   const title = resolved?.name ?? `Item def ${item.def_index}`
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
       <DialogContent aria-describedby={undefined} className="max-w-4xl overflow-hidden p-0">
         <div className="item-dialog-grid" style={{ '--accent': accent } as CSSProperties}>
           <div className={cn('dialog-art', !isSkin && 'dialog-art-sm')}>

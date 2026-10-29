@@ -99,6 +99,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
   const [editPath, setEditPath] = useState(false)
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [itemOpen, setItemOpen] = useState(false)
   const [selecting, setSelecting] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [catalog, setCatalog] = useState<Map<string, ResolvedInventory>>(new Map())
@@ -608,8 +609,9 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
       {selected && (
         <InventoryItemDialog
           item={selected}
+          open={itemOpen}
           resolved={selectedResolved}
-          onClose={() => setSelectedId(null)}
+          onClose={() => setItemOpen(false)}
           onName={(value) => updateName(selected.id, value)}
           onAttr={(key, value) => updateAttribute(selected.id, key, value)}
           onPosition={(value) => updatePosition(selected.id, value)}

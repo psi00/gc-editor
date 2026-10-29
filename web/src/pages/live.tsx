@@ -431,7 +431,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
           key={`${skinSelection.weaponId}-${skinSelection.paint}`}
           selection={skinSelection}
           open={skinOpen}
-          onOpenChange={(open) => { setSkinOpen(open); if (!open) setSkinSelection(null) }}
+          onOpenChange={setSkinOpen}
         />
       )}
 
@@ -440,7 +440,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
           key={`${genericSelection.kind}-${genericSelection.item.def_index}`}
           selection={genericSelection}
           open={genericOpen}
-          onOpenChange={(open) => { setGenericOpen(open); if (!open) setGenericSelection(null) }}
+          onOpenChange={setGenericOpen}
         />
       )}
     </>
