@@ -17,7 +17,7 @@ To run in production mode:
 ```bash
 npm ci
 npm run build
-npm run build-cases # optional, grabs case names for skins from items_game.txt
+npm run build-cases # optional, grabs case and collection names for skins from items_game.txt
 npm start
 ```
 

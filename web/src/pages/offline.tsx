@@ -14,7 +14,7 @@ import { ItemGrid } from '../components/catalog/item-grid'
 import type { CardItem } from '../components/catalog/item-card'
 import { InventoryItemDialog } from '../components/inventory/inv-item-dialog'
 import { itemKey, itemNameTag, resolveInventory, type ResolvedInventory } from '../lib/inventory-catalog'
-import { BROWSE_TABS, isKnifeDef, type Kind, type Quality } from '../lib/catalog'
+import { BROWSE_TABS, isKnifeDef, skinSource, type Kind, type Quality } from '../lib/catalog'
 import { cn } from '../lib/utils'
 import { CategoryBar } from '../components/shell/category-bar'
 import { FilterSidebar, MobileFilters, type FilterState } from '../components/shell/sidebar'
@@ -378,7 +378,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
       named: Boolean(nameTag),
       image: resolved?.image ?? null,
       accent: resolved?.rarity?.color,
-      meta: resolved?.case ?? undefined,
+      meta: resolved ? skinSource(resolved) : undefined,
       badge: item.quality === 9
         ? { label: 'StatTrak', tone: 'st' }
         : item.quality === 12

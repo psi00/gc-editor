@@ -33,6 +33,7 @@ export function resolvePaths(gameDirHint) {
     inventoryTxt: gameDir ? path.join(gameDir, 'csgo_gc', 'inventory.txt') : null,
     itemsGameTxt: gameDir ? path.join(gameDir, 'csgo', 'scripts', 'items', 'items_game.txt') : null,
     configTxt: gameDir ? path.join(gameDir, 'csgo_gc', 'config.txt') : null,
+    csgoEnglishTxt: gameDir ? path.join(gameDir, 'csgo', 'resource', 'csgo_english.txt') : null,
     dataDir: path.join(root, 'data'),
     schemaCache: path.join(root, 'data', 'inventory.en.json'),
     schemaMeta: path.join(root, 'data', 'meta.json'),

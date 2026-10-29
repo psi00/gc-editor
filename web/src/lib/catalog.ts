@@ -3,8 +3,13 @@
 
 export type Weapon = { def_index: number; name: string; thumb?: string }
 export type Rarity = { id?: string; name: string; color: string }
-export type Skin = { paint: number; name: string; rarity?: Rarity; image?: string; case?: string | null }
+export type Skin = { paint: number; name: string; rarity?: Rarity; image?: string; case?: string | null; collection?: string | null }
 export type CategoryItem = { def_index: string; name: string; rarity?: Rarity; image?: string }
+
+/** Card subtitle for a skin: its case, or the collection when it has no case. */
+export function skinSource(skin: { case?: string | null; collection?: string | null }) {
+  return skin.case ?? skin.collection ?? undefined
+}
 
 export type Kind =
   | 'all'

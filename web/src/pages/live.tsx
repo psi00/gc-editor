@@ -9,7 +9,7 @@ import { rconHint } from '../lib/rcon-hints'
 import type { SchemaState, GiveResponse, RconHealth } from '../lib/app-types'
 import {
   BROWSE_TABS, isSkinKind, categoryForKind, isGunWeapon, isKnifeWeapon, isGloveWeapon,
-  skinImage, categoryImage, agentMatchesTeam,
+  skinImage, categoryImage, agentMatchesTeam, skinSource,
   type Kind, type Skin, type CategoryItem, type Weapon,
 } from '../lib/catalog'
 import { CategoryBar } from '../components/shell/category-bar'
@@ -199,7 +199,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
         name: skin.name,
         image: skinImage(activeWeaponId, skin.paint),
         accent: skin.rarity?.color,
-        meta: skin.case ?? undefined,
+        meta: skinSource(skin),
         fallback: String(skin.paint),
       }))
     }

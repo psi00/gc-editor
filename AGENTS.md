@@ -18,8 +18,9 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
   Kill the Node processes and restart. Don't change the port.
 - For one-time online setup, run `npm run fetch-schema` and then
   `npm run prefetch-images`. After that, the app works offline. Run
-  `npm run build-cases` once to map skins to their case (it reads the local
-  `items_game.txt` and writes `data/cases.json`); without it the Case field
+  `npm run build-cases` once to map skins to their case or collection (it reads
+  the local `items_game.txt` and `csgo_english.txt` and writes
+  `data/cases.json`); without it the Case field
   shows `—`. The image prefetch is resumable. A full cache contains about
   29,000 files and uses about 4 GB, so use `-- --only=skins` first. Git ignores
   `data/*.json` and `imgs/*` by design.

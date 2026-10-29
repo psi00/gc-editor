@@ -6,30 +6,39 @@ import path from 'node:path'
 let cache = null
 let cachePath = null
 let cases = {}
+let collections = {}
 
 export function loadSchema(schemaPath) {
   cachePath = schemaPath
   try {
-    if (!fs.existsSync(schemaPath)) { cache = null; cases = {}; return null }
+    if (!fs.existsSync(schemaPath)) { cache = null; cases = {}; collections = {}; return null }
     cache = JSON.parse(fs.readFileSync(schemaPath, 'utf8'))
   } catch {
     cache = null
     cases = {}
+    collections = {}
     return null
   }
-  // optional side-car written by `npm run build-cases`: "<def>:<paint>" -> case name.
+  // optional side-car written by `npm run build-cases`: "<def>:<paint>" -> case
+  // or collection name.
   try {
     const casesPath = path.join(path.dirname(schemaPath), 'cases.json')
     const raw = fs.existsSync(casesPath) ? JSON.parse(fs.readFileSync(casesPath, 'utf8')) : null
     cases = raw && typeof raw.cases === 'object' ? raw.cases : {}
+    collections = raw && typeof raw.collections === 'object' ? raw.collections : {}
   } catch {
     cases = {}
+    collections = {}
   }
   return cache
 }
 
 export function caseForSkin(weaponId, paint) {
   return cases[`${weaponId}:${paint}`] ?? null
+}
+
+export function collectionForSkin(weaponId, paint) {
+  return collections[`${weaponId}:${paint}`] ?? null
 }
 
 export function getSchema() { return cache }
@@ -42,7 +51,7 @@ function allSkins() {
   for (const [weaponId, paints] of Object.entries(cache.skins)) {
     for (const [paintIdx, s] of Object.entries(paints)) {
       const paint = paintIdx === 'null' ? 0 : Number(paintIdx)
-      out.push({ weaponId: Number(weaponId), paint, ...s, case: caseForSkin(Number(weaponId), paint) })
+      out.push({ weaponId: Number(weaponId), paint, ...s, case: caseForSkin(Number(weaponId), paint), collection: collectionForSkin(Number(weaponId), paint) })
     }
   }
   return out
@@ -62,7 +71,7 @@ export function skinsForWeapon(weaponId) {
   return Object.entries(m)
     .map(([paintIdx, s]) => {
       const paint = paintIdx === 'null' ? 0 : Number(paintIdx)
-      return { paint, ...s, case: caseForSkin(Number(weaponId), paint) }
+      return { paint, ...s, case: caseForSkin(Number(weaponId), paint), collection: collectionForSkin(Number(weaponId), paint) }
     })
     .sort((a, b) => a.paint - b.paint)
 }
