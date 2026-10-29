@@ -30,9 +30,11 @@ export type SettingsInfo = {
   schemaMeta: unknown
   imgsDir: string | null
   userCacheDir: string | null
+  customCss: string | null
   inventoryExists: boolean
   itemsGameExists: boolean
   schemaCached: boolean
+  customCssExists: boolean
 }
 
 export type GiveSticker = { id: number; wear?: number; scale?: number; rotation?: number } | null

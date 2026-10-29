@@ -6,6 +6,7 @@ import path from 'node:path'
 import { URL } from 'node:url'
 import { resolvePaths, ensureDirs } from './paths.js'
 import { parseInventory, serializeInventory, validateInventory, writeInventoryAtomic, listInventoryBackups } from './inventory.js'
+import { readCustomCss, writeCustomCss, ensureCustomCss, CUSTOM_CSS_LIMIT } from './custom-css.js'
 import { rconCommand, buildGiveCommand } from './rcon.js'
 import { loadSchema, searchSkins, skinsForWeapon, listWeapons, listCategory, searchAll, categoryCounts, getSchema } from './schema.js'
 
@@ -15,6 +16,7 @@ const HOST = '127.0.0.1'
 let gameDirHint = process.env.CSGO_LEGACY_DIR || null
 let paths = resolvePaths(gameDirHint)
 ensureDirs(paths)
+ensureCustomCss(paths.customCss)
 loadSchema(paths.schemaCache)
 
 function send(res, code, body, type = 'application/json') {
@@ -56,6 +58,7 @@ const server = http.createServer(async (req, res) => {
       inventoryExists: paths.inventoryTxt ? fs.existsSync(paths.inventoryTxt) : false,
       itemsGameExists: paths.itemsGameTxt ? fs.existsSync(paths.itemsGameTxt) : false,
       schemaCached: fs.existsSync(paths.schemaCache),
+      customCssExists: fs.existsSync(paths.customCss),
     }
     send(res, 200, out)
     return
@@ -67,6 +70,28 @@ const server = http.createServer(async (req, res) => {
     ensureDirs(paths)
     loadSchema(paths.schemaCache)
     send(res, 200, { ok: true, gameDir: paths.gameDir })
+    return
+  }
+
+  // --- custom stylesheet: a user file on disk, linked from index.html ---
+  if (p === '/api/custom-css' && req.method === 'GET') {
+    send(res, 200, { ok: true, path: paths.customCss, limit: CUSTOM_CSS_LIMIT, ...readCustomCss(paths.customCss) })
+    return
+  }
+  // raw stylesheet for the <link>. missing file is an empty sheet, not a 404,
+  // so the console stays clean when nobody has customised anything.
+  if (p === '/api/custom-css.css' && req.method === 'GET') {
+    send(res, 200, readCustomCss(paths.customCss).css, 'text/css; charset=utf-8')
+    return
+  }
+  if (p === '/api/custom-css' && req.method === 'POST') {
+    const body = await readBody(req)
+    try {
+      const saved = writeCustomCss(paths.customCss, body.css)
+      send(res, 200, { ok: true, path: paths.customCss, limit: CUSTOM_CSS_LIMIT, ...saved })
+    } catch (e) {
+      send(res, e.code === 'too-large' ? 413 : 400, { ok: false, error: String(e.message) })
+    }
     return
   }
 

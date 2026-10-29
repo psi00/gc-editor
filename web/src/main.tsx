@@ -10,4 +10,10 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './app'
 
+// `?safe=1` drops the user stylesheet before the first render: the rescue path
+// when a custom theme hides the settings page.
+if (new URLSearchParams(location.search).has('safe')) {
+  document.querySelector('link[data-custom-css]')?.remove()
+}
+
 createRoot(document.getElementById('root')!).render(<App />)

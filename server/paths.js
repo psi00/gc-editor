@@ -38,11 +38,12 @@ export function resolvePaths(gameDirHint) {
     schemaMeta: path.join(root, 'data', 'meta.json'),
     imgsDir: path.join(root, 'imgs'),
     userCacheDir: path.join(os.homedir(), '.gc-editor', 'cache'),
+    customCss: path.join(os.homedir(), '.gc-editor', 'custom.css'),
   }
 }
 
 export function ensureDirs(paths) {
-  for (const d of [paths.dataDir, paths.imgsDir, paths.userCacheDir]) {
+  for (const d of [paths.dataDir, paths.imgsDir, paths.userCacheDir, path.dirname(paths.customCss)]) {
     fs.mkdirSync(d, { recursive: true })
   }
   const keep1 = path.join(paths.dataDir, '.gitkeep')

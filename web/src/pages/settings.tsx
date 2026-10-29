@@ -1,21 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  Eye, EyeOff, FolderOpen, Loader2, Save, Wifi, WifiOff,
+  Eraser, Eye, EyeOff, FolderOpen, Loader2, Palette, RefreshCw, Save, Wifi, WifiOff,
 } from 'lucide-react'
 import { api, store } from '../lib/api'
 import { useReport } from '../lib/report'
 import { rconHint } from '../lib/rcon-hints'
-import type { RconStatus, SchemaState, SettingsInfo } from '../lib/app-types'
+import type { RconStatus, SettingsInfo } from '../lib/app-types'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { cn } from '../lib/utils'
 
 type Reply = { command: 'ping' | 'status'; raw: string; ok: boolean }
 
-export function SettingsPage({ settings, onReloadSettings, schema, status, onCheckStatus }: {
+export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus }: {
   settings: SettingsInfo | null
   onReloadSettings: () => Promise<void>
-  schema: SchemaState
   status: RconStatus
   onCheckStatus: () => void
 }) {
@@ -30,6 +29,13 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
   const [savingDir, setSavingDir] = useState(false)
   const [reply, setReply] = useState<Reply | null>(null)
   const [error, setError] = useState('')
+  const [css, setCss] = useState('')
+  const [savedCss, setSavedCss] = useState('')
+  const [cssLimit, setCssLimit] = useState(0)
+  const [cssBusy, setCssBusy] = useState<'load' | 'save' | 'clear' | null>(null)
+  const [cssError, setCssError] = useState('')
+
+  const cssDirty = css !== savedCss
 
   const portValid = Number(port) > 0 && Number(port) <= 65535
   const hostValid = host.trim().length > 0
@@ -80,6 +86,51 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
     }
   }
 
+  const loadCss = async () => {
+    setCssBusy('load')
+    setCssError('')
+    try {
+      const response = await api('/api/custom-css')
+      if (response.error) throw new Error(String(response.error))
+      const text = typeof response.css === 'string' ? response.css : ''
+      setCss(text)
+      setSavedCss(text)
+      setCssLimit(Number(response.limit) || 0)
+    } catch (cause) {
+      setCssError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setCssBusy(null)
+    }
+  }
+
+  useEffect(() => { void loadCss() }, [])
+
+  const writeCss = async (next: string, mode: 'save' | 'clear') => {
+    setCssBusy(mode)
+    setCssError('')
+    try {
+      const response = await api('/api/custom-css', { method: 'POST', body: JSON.stringify({ css: next }) })
+      if (response.error) throw new Error(String(response.error))
+      setCss(next)
+      setSavedCss(next)
+      // re-point the <link> so the saved sheet applies without a page reload
+      const link = document.querySelector<HTMLLinkElement>('link[data-custom-css]')
+      if (link) link.href = `/api/custom-css.css?v=${Date.now()}`
+      report(
+        { kind: 'settings', label: mode === 'clear' ? 'custom css cleared' : 'custom css saved', ok: true, detail: response.path },
+        { title: mode === 'clear' ? 'Custom CSS cleared' : 'Custom CSS applied', body: `${Number(response.size ?? 0)} bytes written to ${response.path}` },
+        'ok',
+      )
+      await onReloadSettings()
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause)
+      setCssError(message)
+      report({ kind: 'error', label: `${mode} custom css`, raw: message, ok: false }, { title: 'Could not save custom CSS', body: message }, 'err')
+    } finally {
+      setCssBusy(null)
+    }
+  }
+
   const paths: { label: string; value: string | null; exists?: boolean | null }[] = settings ? [
     { label: 'game dir', value: settings.gameDir },
     { label: 'inventory.txt', value: settings.inventoryTxt, exists: settings.inventoryExists },
@@ -90,6 +141,7 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
     { label: 'images dir', value: settings.imgsDir },
     { label: 'data dir', value: settings.dataDir },
     { label: 'user cache', value: settings.userCacheDir },
+    { label: 'custom.css', value: settings.customCss, exists: settings.customCssExists },
   ] : []
 
   return (
@@ -105,7 +157,7 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
                 value={host}
                 onChange={(event) => { setHost(event.target.value); store.host = event.target.value; store.save() }}
                 placeholder="127.0.0.1"
-                className={cn('h-9 text-xs', !hostValid && 'border-[#e02d2f]/70')}
+                className={cn('h-9 text-xs', !hostValid && 'border-err-strong/70')}
                 autoComplete="off"
               />
             </label>
@@ -116,7 +168,7 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
                 onChange={(event) => { setPort(event.target.value); store.port = event.target.value; store.save() }}
                 placeholder="37016"
                 inputMode="numeric"
-                className={cn('h-9 text-xs', !portValid && 'border-[#e02d2f]/70')}
+                className={cn('h-9 text-xs', !portValid && 'border-err-strong/70')}
                 autoComplete="off"
               />
             </label>
@@ -194,31 +246,49 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
               </tbody>
             </table>
           </div>
-        </section>
-
-        <section className="panel xl:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-sm font-medium"><FolderOpen className="size-4 text-primary" />Schema cache</h2>
-            <div className="flex items-center gap-2">
-              <span className={cn('chip', schema.cached ? 'chip-ok' : 'chip-warn')}>{schema.cached ? 'cached' : 'empty'}</span>
-              <span className="chip">{schema.weapons.length} weapons</span>
-            </div>
-          </div>
-
-          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-            The cache is fetched once while online, then never touched at runtime. Without it the catalogue shows setup
-            guidance; manual give and the gallery editor keep working.
-          </p>
-          <pre className="log-surface mt-3">{'npm run fetch-schema\nnpm run prefetch-images'}</pre>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Writes to gitignored <span className="font-mono">data/</span> and <span className="font-mono">imgs/</span>.
-            Restart the server after a fetch so it reloads the cache.
-          </p>
 
           <details className="mt-4">
             <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">Current settings JSON</summary>
             <pre className="log-surface mt-2 max-h-64 overflow-auto">{JSON.stringify(settings, null, 2)}</pre>
           </details>
+        </section>
+
+        <section className="panel xl:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-sm font-medium"><Palette className="size-4 text-primary" />Custom CSS</h2>
+            <div className="flex items-center gap-2">
+              <span className={cn('chip', cssDirty ? 'chip-warn' : css.trim() ? 'chip-ok' : '')}>
+                {cssDirty ? 'unsaved' : css.trim() ? 'active' : 'empty'}
+              </span>
+              <span className="chip">{css.length.toLocaleString()} chars</span>
+            </div>
+          </div>
+
+          <textarea
+            value={css}
+            onChange={(event) => setCss(event.target.value)}
+            spellCheck={false}
+            aria-label="Custom CSS"
+            placeholder=":root { --primary: 280 90% 62%; }"
+            className="log-surface mt-3 h-64 w-full resize-y"
+          />
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={() => void writeCss(css, 'save')} disabled={cssBusy !== null || !cssDirty}>
+              {cssBusy === 'save' ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}Save and apply
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => void loadCss()} disabled={cssBusy !== null}>
+              {cssBusy === 'load' ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}Reload from disk
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => void writeCss('', 'clear')} disabled={cssBusy !== null || !css.trim()}>
+              {cssBusy === 'clear' ? <Loader2 className="size-3.5 animate-spin" /> : <Eraser className="size-3.5" />}Clear
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              {cssLimit ? `${Math.round(cssLimit / 1024)} KB limit` : ''}
+            </span>
+          </div>
+
+          {cssError && <div className="log-surface err mt-3">{cssError}</div>}
         </section>
       </div>
     </main>

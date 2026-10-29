@@ -165,7 +165,6 @@ function Shell() {
         <SettingsPage
           settings={settings}
           onReloadSettings={reloadSettings}
-          schema={schema}
           status={status}
           onCheckStatus={() => void checkStatus()}
         />

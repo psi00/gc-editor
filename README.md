@@ -32,6 +32,11 @@ npm run prefetch-images  # optional, fetches artwork, ~29,000 files saved to img
 
 For offline editing of `inventory.txt`, **close the game before saving changes** so it cannot overwrite your edits with its in-memory inventory.
 
+## Custom CSS
+Settings → Custom CSS edits `~/.gc-editor/custom.css`, a real file you can also open in your editor. It is served with `no-store` and applied on save, so no rebuild is needed. Override the `:root` tokens (`--primary`, `--card`, `--card-hover`, `--surface-sunken`, `--err`, ...) instead of class names, which are internal. Every save keeps a timestamped `.bak` beside the file.
+
+If a theme breaks the layout, open the app with `?safe=1` and clear the sheet in Settings. The UI is dark-first, so a light theme also needs its own border and text colors.
+
 ## Screenshots
 ![gc-editor skins config menu](media/configurator.png)
 

@@ -25,8 +25,8 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
   `data/*.json` and `imgs/*` by design.
 - For save tests, point the editor's `?path=` parameter at a **copy** of
   `inventory.txt`, never the live file.
-- `npm test` uses Node's built-in test runner for VDF and inventory round-trips.
-  No extra dependencies.
+- `npm test` uses Node's built-in test runner for VDF, inventory, and custom
+  stylesheet round-trips. No extra dependencies.
 - `npm run screenshots` regenerates the README images in `media/` at 1440x1080.
   It drives a local Chrome or Edge over the DevTools pipe (set `CHROME_PATH` if
   detection fails), needs `npm run build` first, and starts `node server/index.js`
@@ -124,6 +124,22 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
   this to a def lookup.
 - The editor renders unresolved defs as `Item def N` and missing art as the
   placeholder. Resolution must never block the editor.
+
+## Custom CSS
+
+- The user stylesheet is a real file at `~/.gc-editor/custom.css`, seeded from
+  `server/custom-css.js` when missing. Settings writes it through
+  `POST /api/custom-css`. Don't keep a second copy in localStorage.
+- `web/index.html` links `/api/custom-css.css` before React mounts. That route
+  must stay `no-store` and must answer an empty 200 when the file is missing, not
+  a 404.
+- `?safe=1` removes the link in `main.tsx` before the first render. It is the only
+  way out of a layout-breaking theme, so keep it independent of custom CSS.
+- The `:root` tokens in `web/src/styles.css` are the public API; class names are
+  internal. Don't put literal colors in rules or components. Add a token to
+  `:root` and to `web/tailwind.config.js` instead.
+- Writes are atomic with a timestamped `.bak`, like `inventory.txt`. The size cap
+  is `CUSTOM_CSS_LIMIT`.
 
 ## UI conventions
 
