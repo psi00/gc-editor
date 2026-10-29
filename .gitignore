@@ -5,10 +5,7 @@ web/dist/
 
 # local caches - fetch-once then offline
 imgs/*
-!imgs/.gitkeep
-data/*.json
-!data/.gitkeep
-data/images/
+data/*
 
 # user cache (runtime copy)
 .cache/
