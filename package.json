@@ -24,6 +24,7 @@
     "fetch-schema": "node scripts/fetch-schema.mjs",
     "filter-schema": "node scripts/filter-schema.mjs",
     "build-cases": "node scripts/build-cases.mjs",
+    "build-favicon": "node scripts/build-favicon.mjs",
     "prefetch-images": "node scripts/prefetch-images.mjs",
     "screenshots": "node scripts/screenshots.mjs"
   },
