@@ -1,0 +1,26 @@
+# deps + build
+node_modules/
+dist/
+web/dist/
+
+# local caches - fetch-once then offline
+imgs/*
+!imgs/.gitkeep
+data/*.json
+!data/.gitkeep
+data/images/
+
+# user cache (runtime copy)
+.cache/
+.references/
+
+# os + editor
+.DS_Store
+Thumbs.db
+*.local
+.env.local
+
+# logs
+*.log
+gc_log.txt
+*.bak
