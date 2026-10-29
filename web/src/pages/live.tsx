@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowRight, Boxes, ChevronDown, CircleAlert, Database, Grid2X2, Images, Layers, List,
+  Boxes, ChevronDown, CircleAlert, Database, Grid2X2, Images, Layers, List,
   Loader2, PackageSearch, RotateCcw, SlidersHorizontal, Terminal,
 } from 'lucide-react'
 import { api, store } from '../lib/api'
@@ -543,9 +543,6 @@ function RawGivePanel() {
           <Terminal className="size-3.5" />Manual entry
         </div>
         <h2 className="text-lg font-medium">Give by def index</h2>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-          Use this when the catalog does not have what you need. The server still builds and validates the command.
-        </p>
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
           <label>
@@ -582,7 +579,6 @@ function RawGivePanel() {
             {submitting ? <Loader2 className="size-4 animate-spin" /> : <Boxes className="size-4" />}
             {submitting ? 'Sending…' : 'Give item'}
           </Button>
-          <span className="text-[11px] text-muted-foreground">autosave stays on unless you turn it off</span>
         </div>
 
         {error && <div className="log-surface err mt-4">{error}</div>}
@@ -594,16 +590,8 @@ function RawGivePanel() {
           </div>
         )}
         {result && (!result.ok || /^err/i.test(result.saved ?? '')) && (
-          <p className="mt-2 text-[11px] leading-relaxed text-[#ffd740]/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-warn-soft/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
         )}
-      </div>
-
-      <div className="mt-4 flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground">
-        <ArrowRight className="mt-0.5 size-3 shrink-0" />
-        <span>
-          Need the catalogue? Pick a category above and use the one-time setup if the cache is empty.
-          Manual entry always works.
-        </span>
       </div>
     </div>
   )

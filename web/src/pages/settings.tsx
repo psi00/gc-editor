@@ -190,7 +190,6 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </Button>
             </div>
-            <span className="mt-1 block text-[11px] text-muted-foreground">length {password.length} · never logged</span>
           </label>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -227,7 +226,7 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
             </Button>
           </div>
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-            Saving re-resolves every path and reloads the schema cache. Leave blank to auto-detect.
+            Saving re-reads every path. Leave blank to auto-detect.
           </p>
 
           <div className="mt-4 overflow-hidden rounded-xl border border-white/[.06]">

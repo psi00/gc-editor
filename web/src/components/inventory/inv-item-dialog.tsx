@@ -307,9 +307,6 @@ export function InventoryItemDialog({
                   {rawEntries.length === 0 && (
                     <p className="px-1 text-[11px] text-muted-foreground">No other attributes on this item.</p>
                   )}
-                  <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
-                    Values are written verbatim. Clearing an attribute removes the key.
-                  </p>
                 </div>
               </details>
             </div>

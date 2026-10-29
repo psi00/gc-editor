@@ -134,9 +134,6 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
 
           <div className="min-w-0 p-5 sm:p-6">
             <DialogTitle className="pr-8 text-[21px] leading-tight">{selection.name}</DialogTitle>
-            <DialogDescription className="mt-1.5 text-xs text-muted-foreground">
-              Set the float, pattern, StatTrak, and stickers, then give it to the client GC.
-            </DialogDescription>
 
             <div className="mt-5 space-y-4">
               <div>

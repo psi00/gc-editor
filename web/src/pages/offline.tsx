@@ -286,7 +286,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     setDirty(true)
     report(
       { kind: 'info', label: `staged removal of item ${item.id}`, detail: `def ${item.def_index} · not written until save` },
-      { title: `Item ${item.id} removed from the editor`, body: 'Nothing is written to inventory.txt until you save' },
+      { title: `Item ${item.id} removed from the editor` },
       'info',
     )
     setConfirm(null)
@@ -312,7 +312,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     setDirty(true)
     report(
       { kind: 'info', label: `staged removal of ${ids.size} items`, detail: 'not written until save' },
-      { title: `${ids.size} items removed from the editor`, body: 'Nothing is written to inventory.txt until you save' },
+      { title: `${ids.size} items removed from the editor` },
       'info',
     )
     setConfirm(null)
@@ -481,14 +481,14 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
         {error && <div className="log-surface err mt-3">{error}</div>}
 
         {warnings.length > 0 && (
-          <div className="mt-3 rounded-xl border border-[#ffb300]/25 bg-[#ffb300]/[.06] p-3">
-            <p className="flex items-center gap-1.5 text-[11px] font-medium text-[#ffd740]">
+          <div className="mt-3 rounded-xl border border-warn/25 bg-warn/[.06] p-3">
+            <p className="flex items-center gap-1.5 text-[11px] font-medium text-warn-soft">
               <TriangleAlert className="size-3.5" />{warnings.length} validation warning{warnings.length === 1 ? '' : 's'} from the parser
             </p>
-            <ul className="mt-1.5 max-h-28 space-y-0.5 overflow-y-auto font-mono text-[11px] leading-relaxed text-[#ffd740]/75">
+            <ul className="mt-1.5 max-h-28 space-y-0.5 overflow-y-auto font-mono text-[11px] leading-relaxed text-warn-soft/75">
               {warnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}
             </ul>
-            <p className="mt-1.5 text-[11px] text-[#ffd740]/50">Warnings are advisory; the file can still be saved.</p>
+            <p className="mt-1.5 text-[11px] text-warn-soft/50">Warnings don't block saving.</p>
           </div>
         )}
       </div>
@@ -594,14 +594,6 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
               actionLabel="Edit"
             />
           )}
-
-          <div className="mt-3 flex flex-wrap items-start gap-2 text-[11px] leading-relaxed text-muted-foreground">
-            <Database className="mt-0.5 size-3 shrink-0" />
-            <span>
-              Attribute ids: 6 paint, 7 seed, 8 wear, 80 StatTrak, 113–136 stickers, 137–140/223 tournament fields.
-              Deletions are staged until Save + backup; complete item objects are sent so unknown keys survive.
-            </span>
-          </div>
           </div>
         </div>
       )}
@@ -640,7 +632,6 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
               <>
                 Item <span className="font-mono text-foreground/80">{confirm.item.id}</span> (def{' '}
                 <span className="font-mono text-foreground/80">{confirm.item.def_index}</span>) will disappear from this view.
-                Nothing is written to <span className="font-mono">inventory.txt</span> until you press Save + backup.
               </>
             ) : confirm?.type === 'bulk-delete' ? (
               <>
@@ -649,7 +640,6 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
                   {confirm.items.slice(0, 12).map((item) => item.id).join(', ')}
                   {confirm.items.length > 12 ? ` +${confirm.items.length - 12} more` : ''}
                 </span>.
-                Nothing is written to <span className="font-mono">inventory.txt</span> until you press Save + backup.
               </>
             ) : confirm?.type === 'reload' ? (
               <>
@@ -660,8 +650,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
               <>
                 <span className="font-mono text-foreground/80">{confirm.backup.name}</span> (
                 {confirm.backup.count == null ? 'unknown item count' : `${confirm.backup.count} item${confirm.backup.count === 1 ? '' : 's'}`},{' '}
-                {backupTime(confirm.backup.time)}) replaces the items in the editor. Nothing is written to{' '}
-                <span className="font-mono">inventory.txt</span> until you press Save + backup, and the current file is
+                {backupTime(confirm.backup.time)}) replaces the items in the editor. The current file is
                 copied aside first.
               </>
             ) : (
@@ -703,11 +692,8 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
       </Dialog>
 
       <Dialog open={backupsOpen} onOpenChange={setBackupsOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent aria-describedby={undefined} className="max-w-md">
           <DialogTitle>Inventory backups</DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Timestamped copies written next to inventory.txt before every save.
-          </DialogDescription>
           {backupsLoading ? (
             <p className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
               <Loader2 className="size-3.5 animate-spin" />Reading backups…
@@ -737,10 +723,6 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
           )}
         </DialogContent>
       </Dialog>
-
-      <p className="mt-6 text-center text-[11px] text-muted-foreground">
-        Backups are written next to the file as <span className="font-mono">inventory.txt.&lt;iso-timestamp&gt;.bak</span>.
-      </p>
       </main>
 
       <MobileFilters open={mobileFilters} onOpenChange={setMobileFilters} state={filterState} />

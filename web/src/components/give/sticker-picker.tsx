@@ -79,7 +79,7 @@ export function StickerPicker({ slot, value, onPick, onClear, onClose }: Sticker
         {loading && <p className="flex items-center gap-2 px-1 py-2 text-[11px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" />searching stickers…</p>}
         {!loading && error && <p className="px-1 py-2 text-[11px] text-err-soft">{error}</p>}
         {!loading && !error && query.trim().length < MIN_QUERY && (
-          <p className="px-1 py-2 text-[11px] text-muted-foreground">Type at least {MIN_QUERY} characters — the catalogue is too large to list in full.</p>
+          <p className="px-1 py-2 text-[11px] text-muted-foreground">Type at least {MIN_QUERY} characters to search.</p>
         )}
         {!loading && !error && query.trim().length >= MIN_QUERY && items.length === 0 && (
           <p className="px-1 py-2 text-[11px] text-muted-foreground">No stickers match that search.</p>

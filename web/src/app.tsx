@@ -183,8 +183,8 @@ function Shell() {
         <DialogContent className="max-w-md">
           <DialogTitle>Discard unsaved gallery edits?</DialogTitle>
           <DialogDescription className="text-xs leading-relaxed text-muted-foreground">
-            The gallery editor has changes that have not been written to inventory.txt. Leaving now drops them;
-            no backup is written for unsaved edits.
+            The gallery has edits that aren't in inventory.txt yet. Leaving now discards them, and
+            unsaved edits aren't backed up.
           </DialogDescription>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setPendingNav(null)}>Keep editing</Button>
