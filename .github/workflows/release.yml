@@ -1,0 +1,50 @@
+name: release
+
+# publishes a full release for every `v*` tag, so the shipped zip is built from
+# the tagged commit instead of being zipped and uploaded by hand.
+# cut one with: git tag -a v1.0.0 -m "gc-editor 1.0.0" && git push origin v1.0.0
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # --generate-notes walks the history back to the previous release
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check tag matches package.json
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          test "$TAG" = "$version" || { echo "tag $TAG does not match $version"; exit 1; }
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noemit
+      - run: npm run build
+
+      # prebuilt, runnable bundle: server has zero deps, so nothing to install
+      - name: Package
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          test -f dist/web/index.html
+          zip -qr "gc-editor-$TAG.zip" \
+            dist server scripts package.json package-lock.json README.md LICENSE
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" "gc-editor-$TAG.zip" --verify-tag --title "$TAG" --generate-notes
