@@ -8,10 +8,11 @@ import { useReport } from '../lib/report'
 import { rconHint } from '../lib/rcon-hints'
 import type { SchemaState, GiveResponse, RconHealth } from '../lib/app-types'
 import {
-  KINDS, isSkinKind, categoryForKind, isGunWeapon, isKnifeWeapon, isGloveWeapon,
-  skinImage, categoryImage, qualityOf, qualityBadge, agentMatchesTeam, rarityLabel,
-  type Kind, type Quality, type Skin, type CategoryItem,
+  BROWSE_TABS, isSkinKind, categoryForKind, isGunWeapon, isKnifeWeapon, isGloveWeapon,
+  skinImage, categoryImage, agentMatchesTeam,
+  type Kind, type Skin, type CategoryItem, type Weapon,
 } from '../lib/catalog'
+import { CategoryBar } from '../components/shell/category-bar'
 import { FilterSidebar, MobileFilters, type FilterState } from '../components/shell/sidebar'
 import { ItemGrid } from '../components/catalog/item-grid'
 import type { CardItem } from '../components/catalog/item-card'
@@ -42,7 +43,6 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
   const [skinQuery, setSkinQuery] = useState('')
   const [catQuery, setCatQuery] = useState('')
   const [rarity, setRarity] = useState('')
-  const [quality, setQuality] = useState<Quality>('all')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [visible, setVisible] = useState(PAGE_STEP)
   const [mobileFilters, setMobileFilters] = useState(false)
@@ -62,7 +62,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
   const [skinOpen, setSkinOpen] = useState(false)
   const [genericOpen, setGenericOpen] = useState(false)
 
-  const category = categoryForKind(kind)
+  const category = kind === 'all' || kind === 'raw' ? null : categoryForKind(kind)
   const skinKind = isSkinKind(kind)
   const activeWeaponId = kind === 'knives' ? knifeId : kind === 'gloves' ? gloveId : weaponId
 
@@ -164,17 +164,16 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
     if (rarity && !rarities.some((entry) => entry.name === rarity)) setRarity('')
   }, [dataReady, rarities, rarity])
 
-  useEffect(() => { setVisible(PAGE_STEP) }, [kind, weaponId, knifeId, gloveId, skinQuery, catQuery, rarity, quality, agentTeam])
+  useEffect(() => { setVisible(PAGE_STEP) }, [kind, weaponId, knifeId, gloveId, skinQuery, catQuery, rarity, agentTeam])
 
   const filteredSkins = useMemo(() => {
     const needle = skinQuery.trim().toLowerCase()
     return activeSkins.filter((skin) => {
       if (needle && !skin.name.toLowerCase().includes(needle)) return false
       if (rarity && (skin.rarity?.name ?? 'unknown') !== rarity) return false
-      if (quality !== 'all' && qualityOf(skin.name) !== quality) return false
       return true
     })
-  }, [activeSkins, skinQuery, rarity, quality])
+  }, [activeSkins, skinQuery, rarity])
 
   const filteredCategory = useMemo(() => {
     return activeCatItems.filter((item) => {
@@ -200,9 +199,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
         name: skin.name,
         image: skinImage(activeWeaponId, skin.paint),
         accent: skin.rarity?.color,
-        meta: [rarityLabel(skin.rarity?.name) ?? 'unknown'],
-        badge: qualityBadge(skin.name),
-        footer: `def ${activeWeaponId} · paint ${skin.paint}`,
+        meta: skin.case ?? undefined,
         fallback: String(skin.paint),
       }))
     }
@@ -211,16 +208,13 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
       name: item.name,
       image: categoryImage(category ?? '', item.def_index),
       accent: item.rarity?.color,
-      meta: [rarityLabel(item.rarity?.name) ?? category ?? ''],
-      footer: `def ${item.def_index}`,
       fallback: item.def_index,
     }))
-  }, [skinKind, filteredSkins, filteredCategory, visible, activeWeaponId, category])
+  }, [skinKind, filteredSkins, filteredCategory, visible, activeWeaponId, category, kind])
 
   const activeFilters =
     Number((skinKind ? skinQuery : catQuery).trim().length > 0) +
     Number(rarity !== '') +
-    Number(skinKind && quality !== 'all') +
     Number(kind === 'agents')
 
   const totalNoun = skinKind ? 'skins' : 'items'
@@ -232,7 +226,6 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
     setSkinQuery('')
     setCatQuery('')
     setRarity('')
-    setQuality('all')
     setAgentTeam('ct')
   }
 
@@ -254,9 +247,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
     rarities,
     rarity,
     onRarity: setRarity,
-    showQuality: skinKind,
-    quality,
-    onQuality: setQuality,
+    showQuality: false,
     agentTeam: kind === 'agents' ? agentTeam : undefined,
     onAgentTeam: kind === 'agents' ? setAgentTeam : undefined,
     onReset: resetFilters,
@@ -285,59 +276,59 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
     setGenericOpen(true)
   }
 
-  const kindCount = category ? schema.counts[category] : skinKind ? activeSkins.length : 0
-  const kindLabel = skinKind ? 'skins' : 'items'
-  const cacheLabel = schema.cached ? 'ready' : schema.status === 'loading' ? 'loading' : 'empty'
+  const schemaNotice = schema.status === 'error' ? (
+    <EmptyState
+      icon={<Database className="size-6" />}
+      title="Catalog cache could not be loaded"
+      action={<Button onClick={onReloadSchema}><RotateCcw className="size-4" />Retry</Button>}
+    >
+      {schema.error ?? 'The API did not respond while reading /api/schema/weapons and /api/schema/counts.'}
+    </EmptyState>
+  ) : schema.status === 'ready' && cacheEmpty ? (
+    <EmptyState
+      icon={<PackageSearch className="size-6" />}
+      title="No catalog cache yet"
+      action={
+        <>
+          <Button onClick={onReloadSchema}><RotateCcw className="size-4" />Reload cache</Button>
+          <Button variant="secondary" onClick={() => setKind('raw')}><Terminal className="size-4" />Give by def index</Button>
+        </>
+      }
+    >
+      <p>The editor works offline, but the catalogue needs a one-time online fetch:</p>
+      <pre className="log-surface mt-3 text-left">{'npm run fetch-schema\nnpm run prefetch-images'}</pre>
+      <p className="mt-2 text-xs">Both write to gitignored <span className="font-mono">data/</span> and <span className="font-mono">imgs/</span>. Nothing is fetched at runtime.</p>
+    </EmptyState>
+  ) : null
 
   return (
     <>
-      <div className="category-bar">
-        <nav className="page-shell no-scrollbar flex gap-1 overflow-x-auto" aria-label="Schema categories">
-          {KINDS.map((entry) => (
+      <CategoryBar
+        label="Schema categories"
+        tabs={BROWSE_TABS}
+        value={kind}
+        onChange={(id) => { setKind(id as Kind); setSkinSelection(null); setGenericSelection(null) }}
+        trailing={
+          <>
+            <span className="category-divider" aria-hidden />
             <button
-              key={entry.id}
-              onClick={() => { setKind(entry.id); setSkinSelection(null); setGenericSelection(null) }}
-              className={cn('category-link', kind === entry.id && 'active')}
-              aria-current={kind === entry.id ? 'page' : undefined}
+              onClick={() => { setKind('raw'); setSkinSelection(null); setGenericSelection(null) }}
+              className={cn('category-link', kind === 'raw' && 'active')}
+              aria-current={kind === 'raw' ? 'page' : undefined}
+              aria-label="Manual entry"
             >
-              {entry.label}
+              <Terminal className="size-3.5" /><span className="hidden sm:inline">Manual</span>
             </button>
-          ))}
-        </nav>
-      </div>
+          </>
+        }
+      />
 
       <main className="page-shell pb-16 pt-7">
-        <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-[11px] font-medium text-primary">
-              <span className="live-dot" />Local CS:GO catalog
-            </div>
-            <h1 className="text-[30px] font-semibold tracking-[-.04em] sm:text-[34px]">{KINDS.find((entry) => entry.id === kind)?.label}</h1>
-            <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
-              {kind === 'raw'
-                ? 'Give an item by def index when the catalog does not have it. Missing artwork never blocks manual entry.'
-                : 'Open a card to configure wear, pattern, StatTrak, and stickers, then give it through RCON. Missing artwork falls back to a placeholder.'}
-            </p>
-          </div>
-          {kind !== 'raw' && (
-            <div className="hidden items-center gap-6 pb-1 md:flex">
-              <div className="stat"><strong className="num">{schema.weapons.length}</strong><span>weapons</span></div>
-              <div className="h-8 w-px bg-white/[.07]" />
-              <div className="stat"><strong className="num">{kindCount}</strong><span>{kindLabel}</span></div>
-              <div className="h-8 w-px bg-white/[.07]" />
-              <span className={cn('chip', schema.cached ? 'chip-ok' : schema.status === 'loading' ? '' : 'chip-warn')}>
-                <span className={cn('live-dot', !schema.cached && schema.status !== 'loading' && 'warn')} />
-                cache {cacheLabel}
-              </span>
-            </div>
-          )}
-        </div>
-
         {rconHealth === 'auth' && (
-          <div className="mb-5 flex flex-col gap-3 rounded-xl border border-red-500/25 bg-red-500/[.055] px-4 py-3 sm:flex-row sm:items-center">
+          <div className="mb-5 flex flex-col gap-3 rounded-xl border border-[#f44336]/30 bg-[#f44336]/[.06] px-4 py-3 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 items-start gap-3">
-              <CircleAlert className="mt-0.5 size-4 shrink-0 text-red-300" />
-              <p className="min-w-0 text-xs leading-relaxed text-red-100/80">
+              <CircleAlert className="mt-0.5 size-4 shrink-0 text-[#e57373]" />
+              <p className="min-w-0 text-xs leading-relaxed text-[#e57373]">
                 RCON auth failed — gives will return ERR until the password in Settings matches the GC. An empty
                 password in config.txt accepts anything.
               </p>
@@ -348,6 +339,15 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
 
         {kind === 'raw' ? (
           <RawGivePanel />
+        ) : kind === 'all' ? (
+          schemaNotice ?? (
+            <BrowseOverview
+              weapons={schema.weapons}
+              counts={schema.counts}
+              loading={schema.status === 'loading'}
+              onPick={(next) => setKind(next)}
+            />
+          )
         ) : (
           <div className="workspace">
             <FilterSidebar state={filterState} />
@@ -360,8 +360,8 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Button variant="secondary" className="lg:hidden" onClick={() => setMobileFilters(true)}>
-                    <SlidersHorizontal className="size-4" />Filters
+                  <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => setMobileFilters(true)}>
+                    <SlidersHorizontal className="size-3.5" />Filters
                     {activeFilters > 0 && <span className="filter-count">{activeFilters}</span>}
                   </Button>
                   <div className="hidden rounded-lg border border-white/[.075] bg-white/[.035] p-0.5 sm:flex">
@@ -373,32 +373,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
 
               {schema.status === 'loading' && <ItemGrid items={[]} view={view} loading onOpen={() => undefined} />}
 
-              {schema.status === 'error' && (
-                <EmptyState
-                  icon={<Database className="size-6" />}
-                  title="Catalog cache could not be loaded"
-                  action={<Button onClick={onReloadSchema}><RotateCcw className="size-4" />Retry</Button>}
-                >
-                  {schema.error ?? 'The API did not respond while reading /api/schema/weapons and /api/schema/counts.'}
-                </EmptyState>
-              )}
-
-              {schema.status === 'ready' && cacheEmpty && (
-                <EmptyState
-                  icon={<PackageSearch className="size-6" />}
-                  title="No catalog cache yet"
-                  action={
-                    <>
-                      <Button onClick={onReloadSchema}><RotateCcw className="size-4" />Reload cache</Button>
-                      <Button variant="secondary" onClick={() => setKind('raw')}><Terminal className="size-4" />Give by def index</Button>
-                    </>
-                  }
-                >
-                  <p>The editor works offline, but the catalogue needs a one-time online fetch:</p>
-                  <pre className="log-surface mt-3 text-left">{'npm run fetch-schema\nnpm run prefetch-images'}</pre>
-                  <p className="mt-2 text-xs">Both write to gitignored <span className="font-mono">data/</span> and <span className="font-mono">imgs/</span>. Nothing is fetched at runtime.</p>
-                </EmptyState>
-              )}
+              {schemaNotice}
 
               {schema.status === 'ready' && !cacheEmpty && loading && <ItemGrid items={[]} view={view} loading onOpen={openCard} />}
 
@@ -408,7 +383,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
                   title="Could not load this category"
                   action={<Button onClick={() => setReloadKey((key) => key + 1)}><RotateCcw className="size-4" />Retry</Button>}
                 >
-                  <span className="font-mono text-xs text-red-300">{error}</span>
+                  <span className="font-mono text-xs text-[#e57373]">{error}</span>
                 </EmptyState>
               )}
 
@@ -420,7 +395,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
                 >
                   {categoryCapped
                     ? 'The category is capped at 500 rows per request — narrow the search instead of clearing it.'
-                    : 'Adjust the weapon, rarity, quality, or search text.'}
+                    : 'Adjust the weapon, rarity, or search text.'}
                 </EmptyState>
               )}
 
@@ -432,11 +407,11 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
                       <Button variant="secondary" size="lg" onClick={() => setVisible((count) => count + PAGE_STEP)}>
                         Show more<ChevronDown className="size-4" />
                       </Button>
-                      <span className="text-[10px] text-muted-foreground">{total - visible} more loaded in this view</span>
+                      <span className="text-[11px] text-muted-foreground">{total - visible} more loaded in this view</span>
                     </div>
                   )}
                   {categoryCapped && (
-                    <p className="mt-4 flex items-start gap-2 text-[10px] leading-relaxed text-muted-foreground">
+                    <p className="mt-4 flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground">
                       <Layers className="mt-0.5 size-3 shrink-0" />
                       The server returns at most {CATEGORY_LIMIT} rows per request{catQuery ? ' for this search' : ''}. This is not the full
                       catalogue — refine the search (stickers alone have 11k+ rows).
@@ -449,7 +424,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
         )}
       </main>
 
-      {kind !== 'raw' && <MobileFilters open={mobileFilters} onOpenChange={setMobileFilters} state={filterState} />}
+      {kind !== 'raw' && kind !== 'all' && <MobileFilters open={mobileFilters} onOpenChange={setMobileFilters} state={filterState} />}
 
       {skinSelection && (
         <SkinConfigurator
@@ -469,6 +444,49 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
         />
       )}
     </>
+  )
+}
+
+function BrowseOverview({ weapons, counts, loading, onPick }: {
+  weapons: Weapon[]
+  counts: Record<string, number>
+  loading: boolean
+  onPick: (kind: Exclude<Kind, 'raw'>) => void
+}) {
+  const rows: { id: Exclude<Kind, 'raw'>; label: string; count?: number; hint: string }[] = [
+    { id: 'skins', label: 'Skins', count: weapons.filter(isGunWeapon).length, hint: 'weapons · every paint' },
+    { id: 'knives', label: 'Knives', count: weapons.filter(isKnifeWeapon).length, hint: 'weapons · every finish' },
+    { id: 'gloves', label: 'Gloves', count: weapons.filter(isGloveWeapon).length, hint: 'weapons · every finish' },
+    { id: 'stickers', label: 'Stickers', count: counts.stickers, hint: 'search the full set' },
+    { id: 'agents', label: 'Agents', count: counts.agents, hint: 'CT and T models' },
+    { id: 'cases', label: 'Cases', count: counts.crates, hint: 'containers' },
+    { id: 'keys', label: 'Keys', count: counts.keys, hint: 'case keys' },
+    { id: 'music', label: 'Music', count: counts.music_kits, hint: 'music kits' },
+  ]
+
+  return (
+    <section aria-label="Catalog categories">
+      <h2 className="text-lg font-medium">Browse the catalog</h2>
+      <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-muted-foreground">
+        Pick a category to load it from the local CS:GO cache. Every item opens a configurator that shows the exact
+        give_item line before sending.
+      </p>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {rows.map((row) => (
+          <button
+            key={row.id}
+            onClick={() => onPick(row.id)}
+            className="flex flex-col items-start gap-1 rounded-xl border border-white/[.07] bg-[rgba(27,29,36,.75)] p-4 text-left transition hover:border-white/20 hover:bg-[#23262d]"
+          >
+            <span className="text-sm font-medium text-foreground">{row.label}</span>
+            <span className="num font-mono text-2xl leading-tight text-foreground/80">
+              {loading ? '…' : row.count ?? '—'}
+            </span>
+            <span className="text-[11px] text-muted-foreground">{row.hint}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -521,7 +539,7 @@ function RawGivePanel() {
   return (
     <div className="mx-auto max-w-2xl">
       <div className="panel">
-        <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.16em] text-primary">
+        <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-primary">
           <Terminal className="size-3.5" />Manual entry
         </div>
         <h2 className="text-lg font-medium">Give by def index</h2>
@@ -536,7 +554,7 @@ function RawGivePanel() {
               value={def}
               onChange={(event) => setDef(event.target.value)}
               inputMode="numeric"
-              className={cn('h-9 text-xs', !defValid && 'border-red-500/50')}
+              className={cn('h-9 text-xs', !defValid && 'border-[#e02d2f]/70')}
               aria-invalid={!defValid}
             />
           </label>
@@ -546,13 +564,13 @@ function RawGivePanel() {
               value={countText}
               onChange={(event) => setCountText(event.target.value)}
               inputMode="numeric"
-              className={cn('h-9 text-xs', !countValid && 'border-red-500/50')}
+              className={cn('h-9 text-xs', !countValid && 'border-[#e02d2f]/70')}
               aria-invalid={!countValid}
             />
           </label>
         </div>
-        {!defValid && <p className="mt-2 text-[10px] text-red-300">Def index must be a positive whole number.</p>}
-        {!countValid && <p className="mt-2 text-[10px] text-red-300">Count must be between 1 and 100.</p>}
+        {!defValid && <p className="mt-2 text-[11px] text-[#e57373]">Def index must be a positive whole number.</p>}
+        {!countValid && <p className="mt-2 text-[11px] text-[#e57373]">Count must be between 1 and 100.</p>}
 
         <label className="mt-4 flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
           <Checkbox checked={autosave} onCheckedChange={(checked) => setAutosave(checked === true)} />
@@ -564,7 +582,7 @@ function RawGivePanel() {
             {submitting ? <Loader2 className="size-4 animate-spin" /> : <Boxes className="size-4" />}
             {submitting ? 'Sending…' : 'Give item'}
           </Button>
-          <span className="text-[10px] text-muted-foreground">autosave stays on unless you turn it off</span>
+          <span className="text-[11px] text-muted-foreground">autosave stays on unless you turn it off</span>
         </div>
 
         {error && <div className="log-surface err mt-4">{error}</div>}
@@ -576,11 +594,11 @@ function RawGivePanel() {
           </div>
         )}
         {result && (!result.ok || /^err/i.test(result.saved ?? '')) && (
-          <p className="mt-2 text-[10px] leading-relaxed text-amber-200/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-[#ffd740]/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
         )}
       </div>
 
-      <div className="mt-4 flex items-start gap-2 text-[10px] leading-relaxed text-muted-foreground">
+      <div className="mt-4 flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground">
         <ArrowRight className="mt-0.5 size-3 shrink-0" />
         <span>
           Need the catalogue? Pick a category above and use the one-time setup if the cache is empty.

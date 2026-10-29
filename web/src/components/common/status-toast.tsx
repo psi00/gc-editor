@@ -36,12 +36,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         <div className="toast" aria-live="polite">
           {items.map((item) => (
             <div key={item.id} className={cn('toast-item', item.tone === 'err' && 'err', item.tone === 'ok' && 'ok')} role="status">
-              <span className={cn('mt-0.5 grid size-6 shrink-0 place-items-center rounded-full', item.tone === 'err' ? 'bg-red-500/15 text-red-300' : item.tone === 'info' ? 'bg-white/10 text-white/70' : 'bg-primary/15 text-primary')}>
+              <span className={cn('mt-0.5 grid size-6 shrink-0 place-items-center rounded-full', item.tone === 'err' ? 'bg-[#f44336]/15 text-[#ff8a80]' : item.tone === 'info' ? 'bg-white/10 text-white/70' : 'bg-primary/15 text-primary')}>
                 {item.tone === 'err' ? <CircleAlert className="size-3.5" /> : item.tone === 'info' ? <Info className="size-3.5" /> : <Check className="size-3.5" />}
               </span>
               <span className="min-w-0">
                 <span className="block font-medium">{item.title}</span>
-                {item.body && <span className="mt-0.5 block break-words font-mono text-[10px] leading-relaxed text-white/55">{item.body}</span>}
+                {item.body && <span className="mt-0.5 block break-words font-mono text-[11px] leading-relaxed text-white/55">{item.body}</span>}
               </span>
               <button onClick={() => dismiss(item.id)} aria-label="Dismiss notification" className="rounded p-0.5 text-muted-foreground hover:text-white">
                 <X className="size-3.5" />

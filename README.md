@@ -3,6 +3,8 @@ An inventory web editor for [GT-610's csgo_gc](https://github.com/GT-610/csgo-gc
 
 ![gc-editor skins catalogue](media/live.png)
 
+![gc-editor skins list view](media/live-list.png)
+
 ## Requirements
 - Node.js version 20+
 - For live editing, [GT-610's csgo_gc fork](https://github.com/GT-610/csgo-gc)
@@ -15,6 +17,7 @@ To run in production mode:
 ```bash
 npm ci
 npm run build
+npm run build-cases # optional, grabs case names for skins from items_game.txt
 npm start
 ```
 
@@ -35,6 +38,8 @@ For offline editing of `inventory.txt`, **close the game before saving changes**
 ![gc-editor inventory editor menu](media/editor.png)
 
 ![gc-editor inventory viewer](media/offline.png)
+
+![gc-editor inventory list view](media/offline-list.png)
 
 ![gc-editor inventory bulk selection](media/selection.png)
 

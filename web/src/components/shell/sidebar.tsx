@@ -19,8 +19,8 @@ export type FilterState = {
   rarity: string
   onRarity: (value: string) => void
   showQuality: boolean
-  quality: Quality
-  onQuality: (value: Quality) => void
+  quality?: Quality
+  onQuality?: (value: Quality) => void
   agentTeam?: 'ct' | 't'
   onAgentTeam?: (team: 'ct' | 't') => void
   onReset: () => void
@@ -42,7 +42,7 @@ function SearchField({ state }: { state: FilterState }) {
         data-search-input
         disabled={state.searchDisabled}
       />
-      <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-muted-foreground">/</kbd>
+      <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-white/10 px-1.5 py-0.5 text-[11px] text-muted-foreground">/</kbd>
     </div>
   )
 }
@@ -87,9 +87,9 @@ export function FilterControls({ state }: { state: FilterState }) {
         </Section>
       )}
 
-      {state.showQuality && (
+      {state.showQuality && state.quality && state.onQuality && (
         <Section title="Quality">
-          <Select value={state.quality} onValueChange={(value) => state.onQuality(value as Quality)}>
+          <Select value={state.quality} onValueChange={(value) => state.onQuality?.(value as Quality)}>
             <SelectTrigger className="w-full" aria-label="Filter by quality"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All qualities</SelectItem>
@@ -110,7 +110,7 @@ export function FilterControls({ state }: { state: FilterState }) {
                 onClick={() => state.onAgentTeam?.(team)}
                 aria-pressed={state.agentTeam === team}
                 className={cn(
-                  'rounded-md border border-white/[.065] bg-white/[.018] px-2 py-1.5 text-[10px] text-muted-foreground transition hover:text-foreground',
+                  'rounded-md border border-white/[.065] bg-white/[.018] px-2 py-1.5 text-[11px] text-muted-foreground transition hover:text-foreground',
                   state.agentTeam === team && 'border-primary/40 bg-primary/10 text-foreground',
                 )}
               >{label}</button>

@@ -23,9 +23,13 @@
     "prepare": "husky",
     "fetch-schema": "node scripts/fetch-schema.mjs",
     "filter-schema": "node scripts/filter-schema.mjs",
-    "prefetch-images": "node scripts/prefetch-images.mjs"
+    "build-cases": "node scripts/build-cases.mjs",
+    "prefetch-images": "node scripts/prefetch-images.mjs",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
+    "@fontsource/roboto": "^5.3.0",
+    "@fontsource/roboto-mono": "^5.3.0",
     "@radix-ui/react-checkbox": "^1.4.1",
     "@radix-ui/react-dialog": "^1.3.1",
     "@radix-ui/react-select": "^2.4.1",

@@ -17,10 +17,10 @@ export default {
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
       },
       fontFamily: {
-        sans: ['Inter', 'Segoe UI', 'system-ui', 'sans-serif'],
-        mono: ['Consolas', 'SFMono-Regular', 'ui-monospace', 'monospace'],
+        sans: ['Roboto', 'Segoe UI', 'system-ui', 'sans-serif'],
+        mono: ['Roboto Mono', 'Consolas', 'SFMono-Regular', 'ui-monospace', 'monospace'],
       },
-      boxShadow: { glow: '0 0 32px rgba(91, 124, 255, .18)' },
+      boxShadow: { glow: '0 0 32px rgba(35, 123, 255, .22)' },
     },
   },
   plugins: [],

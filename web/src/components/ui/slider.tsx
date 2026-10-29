@@ -15,7 +15,7 @@ export const Slider = React.forwardRef<
       {Array.from({ length: thumbs }).map((_, index) => (
         <SliderPrimitive.Thumb
           key={index}
-          className="block size-3.5 rounded-full border-[3px] border-primary bg-[#0d1015] shadow-[0_0_0_3px_rgba(103,133,255,.12)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="block size-3.5 rounded-full border-[3px] border-primary bg-[#23262d] shadow-[0_0_0_3px_rgba(35,123,255,.2)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           aria-label={index === 0 ? 'Minimum' : 'Maximum'}
         />
       ))}

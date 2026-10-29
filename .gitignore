@@ -11,6 +11,9 @@ data/*
 .cache/
 .references/
 
+# local demo inventory for screenshots (personal data stays out of git)
+demo/*
+
 # os + editor
 .DS_Store
 Thumbs.db

@@ -19,13 +19,14 @@ export type ResolvedInventory = {
   rarity?: Rarity
   category?: string
   paint?: number
+  case?: string | null
   isSkin: boolean
   isWeapon: boolean
   isGlove: boolean
   isMusic: boolean
 }
 
-type SkinEntry = { name: string; rarity?: Rarity }
+type SkinEntry = { name: string; rarity?: Rarity; case?: string | null }
 type CategoryEntry = { name: string; rarity?: Rarity; cat: string }
 type CategoryIndex = { byDef: Map<string, CategoryEntry>; music: Map<string, CategoryEntry> }
 
@@ -41,7 +42,7 @@ function loadSkins(defIndex: number) {
       .then((response) => {
         const map = new Map<string, SkinEntry>()
         for (const skin of Array.isArray(response.skins) ? response.skins : []) {
-          map.set(String(skin.paint), { name: String(skin.name), rarity: skin.rarity })
+          map.set(String(skin.paint), { name: String(skin.name), rarity: skin.rarity, case: skin.case })
         }
         return map
       })
@@ -165,6 +166,7 @@ export async function resolveInventory(items: InvItem[], weapons: Weapon[]) {
           image: skinImage(item.def_index, paint ?? 0),
           rarity: skin.rarity,
           paint: paint ?? 0,
+          case: skin.case ?? null,
           isSkin: paint != null && paint > 0,
           isWeapon: weaponDefs.has(item.def_index) || isGloveDef(item.def_index) || paint != null,
           isGlove: isGloveDef(item.def_index),

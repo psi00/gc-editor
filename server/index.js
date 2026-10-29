@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { URL } from 'node:url'
 import { resolvePaths, ensureDirs } from './paths.js'
-import { parseInventory, serializeInventory, validateInventory, writeInventoryAtomic } from './inventory.js'
+import { parseInventory, serializeInventory, validateInventory, writeInventoryAtomic, listInventoryBackups } from './inventory.js'
 import { rconCommand, buildGiveCommand } from './rcon.js'
 import { loadSchema, searchSkins, skinsForWeapon, listWeapons, listCategory, searchAll, categoryCounts, getSchema } from './schema.js'
 
@@ -133,6 +133,16 @@ const server = http.createServer(async (req, res) => {
       send(res, 200, { path: file, items: inv.items, default_equips: inv.default_equips, warnings, count: inv.items.length })
     } catch (e) {
       send(res, 500, { error: String(e.message) })
+    }
+    return
+  }
+  if (p === '/api/inventory/backups' && req.method === 'GET') {
+    const file = u.searchParams.get('path') || paths.inventoryTxt
+    if (!file) { send(res, 200, { path: file, backups: [] }); return }
+    try {
+      send(res, 200, { path: file, backups: listInventoryBackups(file) })
+    } catch (e) {
+      send(res, 500, { path: file, backups: [], error: String(e.message) })
     }
     return
   }

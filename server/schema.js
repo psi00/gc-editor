@@ -1,20 +1,35 @@
 // schema cache: bundled data/inventory.en.json (fetch-once) + local fallback.
 // shape mirrors bymykel inventory.json trimmed to name/rarity/image per entry.
 import fs from 'node:fs'
+import path from 'node:path'
 
 let cache = null
 let cachePath = null
+let cases = {}
 
 export function loadSchema(schemaPath) {
   cachePath = schemaPath
   try {
-    if (!fs.existsSync(schemaPath)) { cache = null; return null }
+    if (!fs.existsSync(schemaPath)) { cache = null; cases = {}; return null }
     cache = JSON.parse(fs.readFileSync(schemaPath, 'utf8'))
-    return cache
   } catch {
     cache = null
+    cases = {}
     return null
   }
+  // optional side-car written by `npm run build-cases`: "<def>:<paint>" -> case name.
+  try {
+    const casesPath = path.join(path.dirname(schemaPath), 'cases.json')
+    const raw = fs.existsSync(casesPath) ? JSON.parse(fs.readFileSync(casesPath, 'utf8')) : null
+    cases = raw && typeof raw.cases === 'object' ? raw.cases : {}
+  } catch {
+    cases = {}
+  }
+  return cache
+}
+
+export function caseForSkin(weaponId, paint) {
+  return cases[`${weaponId}:${paint}`] ?? null
 }
 
 export function getSchema() { return cache }
@@ -26,7 +41,8 @@ function allSkins() {
   const out = []
   for (const [weaponId, paints] of Object.entries(cache.skins)) {
     for (const [paintIdx, s] of Object.entries(paints)) {
-      out.push({ weaponId: Number(weaponId), paint: paintIdx === 'null' ? 0 : Number(paintIdx), ...s })
+      const paint = paintIdx === 'null' ? 0 : Number(paintIdx)
+      out.push({ weaponId: Number(weaponId), paint, ...s, case: caseForSkin(Number(weaponId), paint) })
     }
   }
   return out
@@ -44,7 +60,10 @@ export function skinsForWeapon(weaponId) {
   if (!cache || !cache.skins) return []
   const m = cache.skins[String(weaponId)] || {}
   return Object.entries(m)
-    .map(([paintIdx, s]) => ({ paint: paintIdx === 'null' ? 0 : Number(paintIdx), ...s }))
+    .map(([paintIdx, s]) => {
+      const paint = paintIdx === 'null' ? 0 : Number(paintIdx)
+      return { paint, ...s, case: caseForSkin(Number(weaponId), paint) }
+    })
     .sort((a, b) => a.paint - b.paint)
 }
 

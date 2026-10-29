@@ -103,3 +103,29 @@ export function writeInventoryAtomic(filePath, content) {
   fs.writeFileSync(tmp, content, 'utf8')
   fs.renameSync(tmp, filePath)
 }
+
+// Timestamped copies live next to inventory.txt as `<name>.<iso-timestamp>.bak`.
+export function listInventoryBackups(filePath, limit = 100) {
+  if (!filePath) return []
+  const dir = path.dirname(filePath)
+  const prefix = `${path.basename(filePath)}.`
+  if (!fs.existsSync(dir)) return []
+  const backups = []
+  for (const name of fs.readdirSync(dir)) {
+    if (!name.startsWith(prefix) || !name.endsWith('.bak')) continue
+    const file = path.join(dir, name)
+    const match = name.slice(prefix.length, -'.bak'.length).match(/^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/)
+    const stamped = match ? `${match[1]}T${match[2]}:${match[3]}:${match[4]}.${match[5]}Z` : ''
+    let time = Number.isNaN(Date.parse(stamped)) ? '' : stamped
+    let count = null
+    try {
+      if (!time) time = fs.statSync(file).mtime.toISOString()
+      count = parseInventory(fs.readFileSync(file, 'utf8')).items.length
+    } catch {
+      count = null
+    }
+    backups.push({ name, file, time, count })
+  }
+  backups.sort((a, b) => String(b.time).localeCompare(String(a.time)))
+  return backups.slice(0, limit)
+}

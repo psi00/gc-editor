@@ -3,10 +3,11 @@
 
 export type Weapon = { def_index: number; name: string; thumb?: string }
 export type Rarity = { id?: string; name: string; color: string }
-export type Skin = { paint: number; name: string; rarity?: Rarity; image?: string }
+export type Skin = { paint: number; name: string; rarity?: Rarity; image?: string; case?: string | null }
 export type CategoryItem = { def_index: string; name: string; rarity?: Rarity; image?: string }
 
 export type Kind =
+  | 'all'
   | 'skins'
   | 'knives'
   | 'gloves'
@@ -15,7 +16,6 @@ export type Kind =
   | 'cases'
   | 'keys'
   | 'music'
-  | 'souvenir'
   | 'raw'
 
 export const KINDS: { id: Kind; label: string; category?: string }[] = [
@@ -27,8 +27,20 @@ export const KINDS: { id: Kind; label: string; category?: string }[] = [
   { id: 'cases', label: 'Cases', category: 'crates' },
   { id: 'keys', label: 'Keys', category: 'keys' },
   { id: 'music', label: 'Music', category: 'music_kits' },
-  { id: 'souvenir', label: 'Souvenir', category: 'crates' },
   { id: 'raw', label: 'Manual' },
+]
+
+/** The one tab set both Live and Gallery use, so positions never shift. */
+export const BROWSE_TABS: { id: Exclude<Kind, 'raw'>; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'skins', label: 'Skins' },
+  { id: 'knives', label: 'Knives' },
+  { id: 'gloves', label: 'Gloves' },
+  { id: 'stickers', label: 'Stickers' },
+  { id: 'agents', label: 'Agents' },
+  { id: 'cases', label: 'Cases' },
+  { id: 'keys', label: 'Keys' },
+  { id: 'music', label: 'Music' },
 ]
 
 export const GLOVE_DEFS = [4725, 5027, 5030, 5031, 5032, 5033, 5034, 5035]
@@ -39,6 +51,12 @@ export const T_RE = /professional|phoenix|elite|pirate|anarchist|leet|revolution
 
 export function isGloveDef(defIndex: number) {
   return GLOVE_DEFS.includes(Number(defIndex))
+}
+
+// Knives occupy def 500-526; the glove defs sit in that range too.
+export function isKnifeDef(defIndex: number) {
+  const def = Number(defIndex)
+  return def >= 500 && def <= 526 && !isGloveDef(def)
 }
 
 export function isGloveWeapon(w: Weapon) {

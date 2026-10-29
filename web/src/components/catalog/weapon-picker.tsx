@@ -131,7 +131,7 @@ export function WeaponPicker({ weapons, value, onChange, label, disabled }: Weap
                 ))}
               </div>
             ))}
-            {groups.length === 0 && <p className="col-span-2 py-2 text-center text-[10px] text-muted-foreground">no weapon matches</p>}
+            {groups.length === 0 && <p className="col-span-2 py-2 text-center text-[11px] text-muted-foreground">no weapon matches</p>}
           </div>
         </div>
       )}

@@ -56,9 +56,9 @@ export function StickerPicker({ slot, value, onPick, onClear, onClose }: Sticker
   return (
     <div className="sticker-panel">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-[.1em] text-muted-foreground">Sticker slot {slot + 1}</span>
+        <span className="text-[11px] font-medium text-muted-foreground">Sticker slot {slot + 1}</span>
         <div className="flex items-center gap-1">
-          {value && <button onClick={onClear} className="rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-white">clear</button>}
+          {value && <button onClick={onClear} className="rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-white">clear</button>}
           <button onClick={onClose} aria-label="Close sticker search" className="rounded p-1 text-muted-foreground hover:text-white"><X className="size-3.5" /></button>
         </div>
       </div>
@@ -77,7 +77,7 @@ export function StickerPicker({ slot, value, onPick, onClear, onClose }: Sticker
 
       <div className="sticker-options">
         {loading && <p className="flex items-center gap-2 px-1 py-2 text-[11px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" />searching stickers…</p>}
-        {!loading && error && <p className="px-1 py-2 text-[11px] text-red-300">{error}</p>}
+        {!loading && error && <p className="px-1 py-2 text-[11px] text-[#e57373]">{error}</p>}
         {!loading && !error && query.trim().length < MIN_QUERY && (
           <p className="px-1 py-2 text-[11px] text-muted-foreground">Type at least {MIN_QUERY} characters — the catalogue is too large to list in full.</p>
         )}
@@ -96,14 +96,14 @@ export function StickerPicker({ slot, value, onPick, onClear, onClose }: Sticker
               fallbackClassName="sticker-fallback"
               fallback={String(item.def_index)}
             />
-            <span className="min-w-0 flex-1 truncate">{item.name}</span>
-            <span className="font-mono text-[10px] text-muted-foreground">{item.def_index}</span>
+            <span className="min-w-0 flex-1 truncate" title={item.name}>{item.name}</span>
+            <span className="font-mono text-[11px] text-muted-foreground">{item.def_index}</span>
           </button>
         ))}
       </div>
 
       {items.length >= LIMIT && (
-        <p className="mt-1.5 text-[9px] leading-relaxed text-muted-foreground">
+        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
           Showing the first {Math.min(RENDERED, LIMIT)} of {LIMIT}+ matches (server cap). Narrow the query for more precision.
         </p>
       )}

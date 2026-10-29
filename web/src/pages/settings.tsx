@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Database, Eye, EyeOff, FolderOpen, Loader2, Server, Wifi, WifiOff,
+  Eye, EyeOff, FolderOpen, Loader2, Save, Wifi, WifiOff,
 } from 'lucide-react'
 import { api, store } from '../lib/api'
 import { useReport } from '../lib/report'
@@ -94,25 +94,9 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
 
   return (
     <main className="page-shell pb-16 pt-7">
-      <div className="mb-6">
-        <div className="mb-2 flex items-center gap-2 text-[11px] font-medium text-primary">
-          <Server className="size-3.5" />Local configuration
-        </div>
-        <h1 className="text-[30px] font-semibold tracking-[-.04em] sm:text-[34px]">Settings</h1>
-        <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
-          RCON credentials live in this browser's localStorage. The password is masked by default and is never written
-          to Activity. Everything else is resolved by the local server from the game directory.
-        </p>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid items-start gap-4 xl:grid-cols-2">
         <section className="panel">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-sm font-medium"><Wifi className="size-4 text-primary" />RCON</h2>
-            <span className={cn('chip', status.health === 'ready' ? 'chip-ok' : status.health === 'unknown' ? '' : 'chip-warn')}>
-              {status.checking ? 'checking…' : status.health === 'ready' ? 'client registered' : status.health === 'auth' ? 'auth failed' : status.health === 'gc' ? 'gc unavailable' : 'unknown'}
-            </span>
-          </div>
+          <h2 className="flex items-center gap-2 text-sm font-medium"><Wifi className="size-4 text-primary" />RCON</h2>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
             <label>
@@ -121,7 +105,7 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
                 value={host}
                 onChange={(event) => { setHost(event.target.value); store.host = event.target.value; store.save() }}
                 placeholder="127.0.0.1"
-                className={cn('h-9 text-xs', !hostValid && 'border-red-500/50')}
+                className={cn('h-9 text-xs', !hostValid && 'border-[#e02d2f]/70')}
                 autoComplete="off"
               />
             </label>
@@ -132,7 +116,7 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
                 onChange={(event) => { setPort(event.target.value); store.port = event.target.value; store.save() }}
                 placeholder="37016"
                 inputMode="numeric"
-                className={cn('h-9 text-xs', !portValid && 'border-red-500/50')}
+                className={cn('h-9 text-xs', !portValid && 'border-[#e02d2f]/70')}
                 autoComplete="off"
               />
             </label>
@@ -154,7 +138,7 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </Button>
             </div>
-            <span className="mt-1 block text-[9px] text-muted-foreground">length {password.length} · never logged</span>
+            <span className="mt-1 block text-[11px] text-muted-foreground">length {password.length} · never logged</span>
           </label>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -187,10 +171,10 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
               className="h-9 flex-1 font-mono text-xs"
             />
             <Button size="sm" onClick={() => void saveGameDir()} disabled={savingDir}>
-              {savingDir ? <Loader2 className="size-3.5 animate-spin" /> : <Database className="size-3.5" />}Save override
+              {savingDir ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}Save override
             </Button>
           </div>
-          <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
             Saving re-resolves every path and reloads the schema cache. Leave blank to auto-detect.
           </p>
 
@@ -200,11 +184,9 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
                 {paths.map((entry) => (
                   <tr key={entry.label}>
                     <td className="w-28 whitespace-nowrap text-muted-foreground">{entry.label}</td>
-                    <td className="break-all font-mono text-[10px]">{entry.value ?? <span className="text-muted-foreground">not resolved</span>}</td>
-                    <td className="w-10 text-right">
-                      {entry.exists === true && <span className="chip chip-ok">yes</span>}
+                    <td className="break-all font-mono text-[11px]" title={entry.value ?? undefined}>{entry.value ?? <span className="text-muted-foreground">not resolved</span>}</td>
+                    <td className="w-14 text-right">
                       {entry.exists === false && <span className="chip chip-err">missing</span>}
-                      {entry.exists == null && <span className="chip" title="existence is not reported by the API">—</span>}
                     </td>
                   </tr>
                 ))}
@@ -216,24 +198,19 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
 
         <section className="panel xl:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-sm font-medium"><Database className="size-4 text-primary" />Schema cache</h2>
+            <h2 className="flex items-center gap-2 text-sm font-medium"><FolderOpen className="size-4 text-primary" />Schema cache</h2>
             <div className="flex items-center gap-2">
               <span className={cn('chip', schema.cached ? 'chip-ok' : 'chip-warn')}>{schema.cached ? 'cached' : 'empty'}</span>
               <span className="chip">{schema.weapons.length} weapons</span>
-              {['crates', 'stickers', 'agents', 'keys', 'music_kits', 'collectibles', 'tools']
-                .filter((key) => schema.counts[key] != null)
-                .map((key) => (
-                  <span key={key} className="chip">{key} {schema.counts[key]}</span>
-                ))}
             </div>
           </div>
 
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
             The cache is fetched once while online, then never touched at runtime. Without it the catalogue shows setup
-            guidance; manual give and the offline editor keep working.
+            guidance; manual give and the gallery editor keep working.
           </p>
           <pre className="log-surface mt-3">{'npm run fetch-schema\nnpm run prefetch-images'}</pre>
-          <p className="mt-2 text-[10px] text-muted-foreground">
+          <p className="mt-2 text-[11px] text-muted-foreground">
             Writes to gitignored <span className="font-mono">data/</span> and <span className="font-mono">imgs/</span>.
             Restart the server after a fetch so it reloads the cache.
           </p>
@@ -244,10 +221,6 @@ export function SettingsPage({ settings, onReloadSettings, schema, status, onChe
           </details>
         </section>
       </div>
-
-      <p className="mt-6 text-center text-[10px] text-muted-foreground">
-        gc-editor · local RCON + inventory.txt workbench · api on :5174 · one React app
-      </p>
     </main>
   )
 }

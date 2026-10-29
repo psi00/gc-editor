@@ -182,9 +182,9 @@ function Shell() {
 
       <Dialog open={pendingNav !== null} onOpenChange={(open) => { if (!open) setPendingNav(null) }}>
         <DialogContent className="max-w-md">
-          <DialogTitle>Discard unsaved offline edits?</DialogTitle>
+          <DialogTitle>Discard unsaved gallery edits?</DialogTitle>
           <DialogDescription className="text-xs leading-relaxed text-muted-foreground">
-            The offline editor has changes that have not been written to inventory.txt. Leaving now drops them;
+            The gallery editor has changes that have not been written to inventory.txt. Leaving now drops them;
             no backup is written for unsaved edits.
           </DialogDescription>
           <div className="flex justify-end gap-2">

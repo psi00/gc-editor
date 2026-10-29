@@ -17,14 +17,21 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
 - `EADDRINUSE 127.0.0.1:5174` means a stale Node process is holding the port.
   Kill the Node processes and restart. Don't change the port.
 - For one-time online setup, run `npm run fetch-schema` and then
-  `npm run prefetch-images`. After that, the app works offline. The image
-  prefetch is resumable. A full cache contains about 29,000 files and uses about
-  4 GB, so use `-- --only=skins` first. Git ignores `data/*.json` and `imgs/*` by
-  design.
+  `npm run prefetch-images`. After that, the app works offline. Run
+  `npm run build-cases` once to map skins to their case (it reads the local
+  `items_game.txt` and writes `data/cases.json`); without it the Case field
+  shows `—`. The image prefetch is resumable. A full cache contains about
+  29,000 files and uses about 4 GB, so use `-- --only=skins` first. Git ignores
+  `data/*.json` and `imgs/*` by design.
 - For save tests, point the editor's `?path=` parameter at a **copy** of
   `inventory.txt`, never the live file.
 - `npm test` uses Node's built-in test runner for VDF and inventory round-trips.
   No extra dependencies.
+- `npm run screenshots` regenerates the README images in `media/` at 1440x1080.
+  It drives a local Chrome or Edge over the DevTools pipe (set `CHROME_PATH` if
+  detection fails), needs `npm run build` first, and starts `node server/index.js`
+  itself when nothing answers on port 5174. Gallery shots load
+  `demo/inventory.txt` when present, so the README never shows a personal file.
 - Commit messages must follow Conventional Commits. `commitlint` runs from the
   husky `commit-msg` hook, which `npm install` sets up through the `prepare`
   script. Use prefixes such as `fix(rcon): ...` or `ci(release): ...`.
@@ -38,7 +45,9 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
   builds work from the repo root. Don't move these files.
 - `.references/` is a separate design-history app with its own `node_modules`.
   Don't run it or run `npm install` in it. It is not the editor.
-- `test/` holds Node's built-in tests. `docs/` holds the README screenshots.
+- `test/` holds Node's built-in tests. `media/` holds the README screenshots.
+  `demo/inventory.txt` (gitignored) is a curated inventory the screenshot script
+  points the gallery at; it is local-only and not shipped.
 
 ## Frozen backend contract
 

@@ -1,10 +1,10 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { Save, Sticker, Trash2, X } from 'lucide-react'
+import { Sticker, Trash2, X } from 'lucide-react'
 import type { InvItem } from '../../lib/app-types'
-import { itemNameTag, itemPaint, type ResolvedInventory } from '../../lib/inventory-catalog'
+import { itemPaint, type ResolvedInventory } from '../../lib/inventory-catalog'
 import { formatWear, isGloveDef, rarityLabel, round4, wearBand, wearBandId, WEAR_PRESETS } from '../../lib/catalog'
 import { Button } from '../ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
 import { Input } from '../ui/input'
 import { Slider } from '../ui/slider'
 import { SafeImage } from '../common/safe-image'
@@ -34,7 +34,6 @@ export function InventoryItemDialog({
   const paint = itemPaint(item)
   const isSkin = paint != null && paint > 0
   const isWeapon = resolved?.isWeapon ?? false
-  const musicId = item.attributes?.['166'] ?? ''
 
   const [wearText, setWearText] = useState(item.attributes?.['8'] ?? '')
   const [seedText, setSeedText] = useState(item.attributes?.['7'] ?? '')
@@ -114,14 +113,13 @@ export function InventoryItemDialog({
     })
     .sort(([a], [b]) => Number(a) - Number(b))
 
-  const accent = resolved?.rarity?.color || '#5e7bff'
+  const accent = resolved?.rarity?.color || '#6d7486'
   const qualityBadge = item.quality === 9 ? 'StatTrak' : item.quality === 12 ? 'Souvenir' : null
   const title = resolved?.name ?? `Item def ${item.def_index}`
-  const identity = `item ${item.id} · def ${item.def_index}${paint != null ? ` · paint ${paint}` : ''}${musicId ? ` · music ${musicId}` : ''} · inventory position ${item.inventory}`
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="max-w-4xl overflow-hidden p-0">
+      <DialogContent aria-describedby={undefined} className="max-w-4xl overflow-hidden p-0">
         <div className="item-dialog-grid" style={{ '--accent': accent } as CSSProperties}>
           <div className={cn('dialog-art', !isSkin && 'dialog-art-sm')}>
             <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-1.5">
@@ -135,23 +133,17 @@ export function InventoryItemDialog({
               fallback={paint != null ? String(paint) : String(item.def_index)}
               eager
             />
-            <div className="absolute bottom-4 left-4 font-mono text-[10px] text-white/45">
-              def {item.def_index}{paint != null ? ` · paint ${paint}` : ''}{musicId ? ` · music ${musicId}` : ''}
-            </div>
           </div>
 
           <div className="min-w-0 p-5 sm:p-6">
             <DialogTitle className="pr-8 text-[21px] leading-tight">{title}</DialogTitle>
-            <DialogDescription className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              {identity}. Changes stay in the editor until you press Save + backup.
-            </DialogDescription>
 
             <div className="mt-5 space-y-4">
               {isSkin && (
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="field-label mb-0">Float / wear</span>
-                    <span className="text-[10px] text-muted-foreground">{wearBand(wear)}</span>
+                    <span className="text-[11px] text-muted-foreground">{wearBand(wear)}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Slider
@@ -222,9 +214,9 @@ export function InventoryItemDialog({
               )}
 
               <label className="block">
-                <span className="field-label">Name tag (optional)</span>
+                <span className="field-label">Name tag</span>
                 <Input
-                  value={itemNameTag(item)}
+                  value={item.attributes?.['111'] ?? item.custom_name ?? ''}
                   onChange={(event) => onName(event.target.value)}
                   placeholder="name tag text"
                   className="h-9 text-xs"
@@ -236,7 +228,7 @@ export function InventoryItemDialog({
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="field-label mb-0 flex items-center gap-1.5"><Sticker className="size-3" />Stickers</span>
-                    {stickerCount > 0 && <span className="text-[10px] text-muted-foreground">{stickerCount} / {SLOTS}</span>}
+                    {stickerCount > 0 && <span className="text-[11px] text-muted-foreground">{stickerCount} / {SLOTS}</span>}
                   </div>
                   <div className="sticker-row">
                     {stickers.map((id, index) => (
@@ -250,7 +242,7 @@ export function InventoryItemDialog({
                       >
                         {id
                           ? <SafeImage src={`/imgs/stickers/${id}.png`} alt={`Sticker ${id}`} fallback={id} />
-                          : <span>+{index + 1}</span>}
+                          : <span className="slot-index">{index + 1}</span>}
                       </button>
                     ))}
                   </div>
@@ -267,12 +259,12 @@ export function InventoryItemDialog({
               )}
 
               <details className="group">
-                <summary className="cursor-pointer text-[10px] text-muted-foreground transition hover:text-foreground">
-                  Raw values — paint, music, tournament, position
+                <summary className="cursor-pointer text-[11px] text-muted-foreground transition hover:text-foreground">
+                  Raw values
                 </summary>
                 <div className="mt-2 space-y-2 rounded-lg border border-white/[.06] bg-black/20 p-2.5">
                   <label className="flex items-center gap-2">
-                    <span className="w-16 shrink-0 font-mono text-[10px] text-muted-foreground">position</span>
+                    <span className="w-16 shrink-0 font-mono text-[11px] text-muted-foreground">position</span>
                     <Input
                       value={positionText}
                       onChange={(event) => setPositionText(event.target.value)}
@@ -293,7 +285,7 @@ export function InventoryItemDialog({
                   </label>
                   {rawEntries.map(([key, value]) => (
                     <label key={key} className="flex items-center gap-2">
-                      <span className="w-16 shrink-0 font-mono text-[10px] text-muted-foreground">attr {key}</span>
+                      <span className="w-16 shrink-0 font-mono text-[11px] text-muted-foreground">attr {key}</span>
                       <Input
                         value={attrDrafts[key] ?? value}
                         onChange={(event) => setAttrDrafts((current) => ({ ...current, [key]: event.target.value }))}
@@ -312,9 +304,9 @@ export function InventoryItemDialog({
                     </label>
                   ))}
                   {rawEntries.length === 0 && (
-                    <p className="px-1 text-[10px] text-muted-foreground">No other attributes on this item.</p>
+                    <p className="px-1 text-[11px] text-muted-foreground">No other attributes on this item.</p>
                   )}
-                  <p className="px-1 text-[9px] leading-relaxed text-muted-foreground">
+                  <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
                     Values are written verbatim. Clearing an attribute removes the key.
                   </p>
                 </div>
@@ -328,9 +320,6 @@ export function InventoryItemDialog({
               <Button variant="secondary" onClick={onClose}>
                 <X className="size-4" />Done
               </Button>
-              <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
-                <Save className="size-3" />backup written by Save + backup
-              </span>
             </div>
           </div>
         </div>

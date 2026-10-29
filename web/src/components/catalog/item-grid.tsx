@@ -18,7 +18,7 @@ export function ItemGrid({
 }: ItemGridProps) {
   if (loading) {
     return (
-      <div className={cn(view === 'grid' ? 'item-grid' : 'space-y-3')} aria-busy="true" aria-label="Loading items">
+      <div className={cn(view === 'grid' ? 'item-grid' : 'space-y-1')} aria-busy="true" aria-label="Loading items">
         {Array.from({ length: skeletonCount }).map((_, index) => (
           <CardSkeleton key={index} view={view} />
         ))}
@@ -27,7 +27,7 @@ export function ItemGrid({
   }
 
   return (
-    <div className={cn(view === 'grid' ? 'item-grid' : 'space-y-3')}>
+    <div className={cn(view === 'grid' ? 'item-grid' : 'space-y-1')}>
       {items.map((item) => (
         <ItemCard
           key={item.id}

@@ -1,11 +1,11 @@
 import { useMemo, useState, type CSSProperties } from 'react'
-import { Loader2, Plus, Save, Sticker, X } from 'lucide-react'
+import { Loader2, Plus, Sticker, X } from 'lucide-react'
 import { api, quoteName, store } from '../../lib/api'
 import { useReport } from '../../lib/report'
 import { rconHint } from '../../lib/rcon-hints'
 import type { GiveItem, GiveResponse } from '../../lib/app-types'
 import {
-  isGloveDef, rarityLabel, round4, skinImage, wearBand, wearBandId, formatWear, WEAR_PRESETS,
+  isGloveDef, rarityLabel, round4, skinImage, wearBand, wearBandId, WEAR_PRESETS,
 } from '../../lib/catalog'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
@@ -38,6 +38,7 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
   const [wearText, setWearText] = useState('0.0001')
   const [seedText, setSeedText] = useState('0')
   const [stattrak, setStattrak] = useState('')
+  const [souvenir, setSouvenir] = useState(false)
   const [customName, setCustomName] = useState('')
   const [stickers, setStickers] = useState<string[]>(Array(SLOTS).fill(''))
   const [pickSlot, setPickSlot] = useState<number | null>(null)
@@ -52,16 +53,18 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
   const nameValid = customName.length <= 64
   const canSubmit = !submitting && seedValid && stattrakValid && nameValid
 
-  const accent = selection.rarity?.color || '#5e7bff'
+  const accent = selection.rarity?.color || '#6d7486'
   const stickerCount = stickers.filter(Boolean).length
 
   const preview = useMemo(() => {
-    const parts = ['give_item', String(selection.weaponId), `paint=${selection.paint}`, `wear=${round4(wear)}`, `seed=${seedValid ? seed : 0}`]
-    if (!isGlove && stattrak.trim() !== '' && stattrakValid) parts.push(`stattrak=${Number(stattrak)}`)
+    const parts = ['give_item', String(selection.weaponId)]
+    if (!isGlove && souvenir) parts.push('quality=12')
+    parts.push(`paint=${selection.paint}`, `wear=${round4(wear)}`, `seed=${seedValid ? seed : 0}`)
+    if (!isGlove && !souvenir && stattrak.trim() !== '' && stattrakValid) parts.push(`stattrak=${Number(stattrak)}`)
     if (customName.trim()) parts.push(`name=${quoteName(customName.trim())}`)
     if (!isGlove) stickers.forEach((id, index) => { if (id) parts.push(`sticker${index}=${id}`) })
     return parts.join(' ')
-  }, [selection, wear, seed, seedValid, stattrak, stattrakValid, customName, stickers, isGlove])
+  }, [selection, wear, seed, seedValid, stattrak, stattrakValid, customName, stickers, isGlove, souvenir])
 
   const setWearValue = (value: number) => {
     const next = round4(Math.min(1, Math.max(0, value)))
@@ -74,10 +77,11 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
     const item: GiveItem = {
       def_index: selection.weaponId,
       count: 1,
+      quality: !isGlove && souvenir ? 12 : undefined,
       paint: selection.paint,
       wear: round4(wear),
       seed,
-      stattrak: !isGlove && stattrak.trim() !== '' ? Number(stattrak) : undefined,
+      stattrak: !isGlove && !souvenir && stattrak.trim() !== '' ? Number(stattrak) : undefined,
       name: customName.trim() || undefined,
       stickers: isGlove ? [] : stickers.map((id) => (id ? { id: Number(id) } : null)),
     }
@@ -126,9 +130,6 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
               fallback={String(selection.paint)}
               eager
             />
-            <div className="absolute bottom-4 left-4 font-mono text-[10px] text-white/45">
-              def {selection.weaponId} · paint {selection.paint}
-            </div>
           </div>
 
           <div className="min-w-0 p-5 sm:p-6">
@@ -141,7 +142,7 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <span className="field-label mb-0">Float / wear</span>
-                  <span className="text-[10px] text-muted-foreground">{wearBand(wear)}</span>
+                  <span className="text-[11px] text-muted-foreground">{wearBand(wear)}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Slider
@@ -178,41 +179,55 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <label>
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="min-w-[130px] flex-1">
                   <span className="field-label">Pattern seed (0–999)</span>
                   <Input
                     value={seedText}
                     onChange={(event) => setSeedText(event.target.value)}
                     inputMode="numeric"
-                    className={cn('h-9 text-xs', !seedValid && 'border-red-500/50')}
+                    className={cn('h-9 text-xs', !seedValid && 'border-[#e02d2f]/70')}
                     aria-invalid={!seedValid}
                   />
                 </label>
                 {!isGlove && (
-                  <label>
+                  <label className="min-w-[130px] flex-1">
                     <span className="field-label">StatTrak kills</span>
                     <Input
                       value={stattrak}
                       onChange={(event) => setStattrak(event.target.value)}
                       inputMode="numeric"
-                      placeholder="empty = none"
-                      className={cn('h-9 text-xs', !stattrakValid && 'border-red-500/50')}
+                      placeholder={souvenir ? 'souvenir' : 'empty = none'}
+                      disabled={souvenir}
+                      className={cn('h-9 text-xs', !stattrakValid && 'border-[#e02d2f]/70')}
                       aria-invalid={!stattrakValid}
                     />
                   </label>
                 )}
+                {!isGlove && (
+                  <label className="flex h-9 shrink-0 cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                    <Checkbox
+                      checked={souvenir}
+                      onCheckedChange={(checked) => {
+                        const next = checked === true
+                        setSouvenir(next)
+                        if (next) setStattrak('')
+                      }}
+                    />
+                    Souvenir
+                  </label>
+                )}
               </div>
-              {!seedValid && <p className="text-[10px] text-red-300">Seed must be a whole number between 0 and 999.</p>}
-              {!stattrakValid && <p className="text-[10px] text-red-300">StatTrak must be a whole number, or empty for none.</p>}
+              {!seedValid && <p className="text-[11px] text-[#e57373]">Seed must be a whole number between 0 and 999.</p>}
+              {!stattrakValid && <p className="text-[11px] text-[#e57373]">StatTrak must be a whole number, or empty for none.</p>}
 
               <label className="block">
-                <span className="field-label">Name tag (optional)</span>
+                <span className="field-label">Name tag</span>
                 <Input
                   value={customName}
                   onChange={(event) => setCustomName(event.target.value)}
                   placeholder="name tag text"
-                  className={cn('h-9 text-xs', !nameValid && 'border-red-500/50')}
+                  className={cn('h-9 text-xs', !nameValid && 'border-[#e02d2f]/70')}
                   maxLength={64}
                 />
               </label>
@@ -221,7 +236,7 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="field-label mb-0 flex items-center gap-1.5"><Sticker className="size-3" />Stickers</span>
-                    {stickerCount > 0 && <span className="text-[10px] text-muted-foreground">{stickerCount} / {SLOTS}</span>}
+                    {stickerCount > 0 && <span className="text-[11px] text-muted-foreground">{stickerCount} / {SLOTS}</span>}
                   </div>
                   <div className="sticker-row">
                     {stickers.map((id, index) => (
@@ -235,7 +250,7 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                       >
                         {id
                           ? <SafeImage src={`/imgs/stickers/${id}.png`} alt={`Sticker ${id}`} fallback={id} />
-                          : <span>+{index + 1}</span>}
+                          : <span className="slot-index">{index + 1}</span>}
                       </button>
                     ))}
                   </div>
@@ -260,21 +275,8 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="field-label mb-0">Command preview</span>
-                  <span className="text-[9px] text-muted-foreground">server builds the real command</span>
                 </div>
                 <pre className="log-surface">{preview}</pre>
-              </div>
-
-              <div>
-                <span className="field-label">Review</span>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="detail-stat"><span>Paint</span><strong>{selection.paint}</strong></div>
-                  <div className="detail-stat"><span>Wear</span><strong>{formatWear(wear)}</strong></div>
-                  <div className="detail-stat"><span>Seed</span><strong>{seedValid ? seed : '—'}</strong></div>
-                  <div className="detail-stat"><span>StatTrak</span><strong>{isGlove ? 'n/a' : stattrak || 'none'}</strong></div>
-                  <div className="detail-stat"><span>Stickers</span><strong>{isGlove ? 'n/a' : stickerCount}</strong></div>
-                  <div className="detail-stat"><span>Name</span><strong>{customName.trim() || 'none'}</strong></div>
-                </div>
               </div>
 
               <label className="flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
@@ -291,7 +293,7 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                 </div>
               )}
               {result && (!result.ok || /^err/i.test(result.saved ?? '')) && (
-                <p className="text-[10px] leading-relaxed text-amber-200/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
+                <p className="text-[11px] leading-relaxed text-[#ffd740]/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
               )}
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -302,7 +304,6 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                 <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={submitting}>
                   <X className="size-4" />{result?.ok ? 'Done' : 'Cancel'}
                 </Button>
-                {autosave && <span className="flex items-center gap-1 text-[9px] text-muted-foreground"><Save className="size-3" />backup written by save_inventory</span>}
               </div>
             </div>
           </div>

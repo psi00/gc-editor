@@ -8,7 +8,7 @@ import type { CategoryItem, Kind } from '../../lib/catalog'
 import { categoryImage, rarityLabel } from '../../lib/catalog'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
 import { Input } from '../ui/input'
 import { SafeImage } from '../common/safe-image'
 import { cn } from '../../lib/utils'
@@ -35,13 +35,12 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const mode = selection.kind === 'music' ? 'music' : selection.kind === 'souvenir' ? 'souvenir' : 'generic'
+  const mode = selection.kind === 'music' ? 'music' : 'generic'
   const report = useReport()
 
   const [countText, setCountText] = useState('1')
   const [name, setName] = useState('')
   const [musicText, setMusicText] = useState(mode === 'music' ? String(selection.item.def_index) : '')
-  const [tour, setTour] = useState({ event: '', stage: '', team0: '', team1: '', mvp: '' })
   const [autosave, setAutosave] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<GiveResponse | null>(null)
@@ -61,12 +60,6 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
     if (count && count !== 1) parts.push(String(count))
     if (mode === 'music') {
       if (musicValid) parts.push(`music=${musicId}`)
-    } else if (mode === 'souvenir') {
-      if (intOrUndefined(tour.event) !== undefined) parts.push(`tournament_event=${intOrUndefined(tour.event)}`)
-      if (intOrUndefined(tour.stage) !== undefined) parts.push(`tournament_stage=${intOrUndefined(tour.stage)}`)
-      if (intOrUndefined(tour.team0) !== undefined) parts.push(`tournament_team0=${intOrUndefined(tour.team0)}`)
-      if (intOrUndefined(tour.team1) !== undefined) parts.push(`tournament_team1=${intOrUndefined(tour.team1)}`)
-      if (intOrUndefined(tour.mvp) !== undefined) parts.push(`tournament_mvp=${intOrUndefined(tour.mvp)}`)
     }
     if (name.trim()) parts.push(`name=${quoteName(name.trim())}`)
     return parts.join(' ')
@@ -80,11 +73,6 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
         def_index: defIndex,
         count,
         name: name.trim() || undefined,
-        tournament_event: mode === 'souvenir' ? intOrUndefined(tour.event) : undefined,
-        tournament_stage: mode === 'souvenir' ? intOrUndefined(tour.stage) : undefined,
-        tournament_team0: mode === 'souvenir' ? intOrUndefined(tour.team0) : undefined,
-        tournament_team1: mode === 'souvenir' ? intOrUndefined(tour.team1) : undefined,
-        tournament_mvp: mode === 'souvenir' ? intOrUndefined(tour.mvp) : undefined,
       }
 
     setSubmitting(true)
@@ -116,11 +104,11 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
     }
   }
 
-  const accent = selection.item.rarity?.color || '#5e7bff'
+  const accent = selection.item.rarity?.color || '#6d7486'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl overflow-hidden p-0">
+      <DialogContent aria-describedby={undefined} className="max-w-3xl overflow-hidden p-0">
         <div className="item-dialog-grid" style={{ '--accent': accent } as CSSProperties}>
           <div className="dialog-art dialog-art-sm">
             <div className="absolute left-4 top-4 z-10">
@@ -132,20 +120,10 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
               fallback={selection.item.def_index}
               eager
             />
-            <div className="absolute bottom-4 left-4 font-mono text-[10px] text-white/45">
-              {mode === 'music' ? `music ${musicId ?? selection.item.def_index}` : `def ${selection.item.def_index}`}
-            </div>
           </div>
 
           <div className="min-w-0 p-5 sm:p-6">
             <DialogTitle className="pr-8 text-[21px] leading-tight">{selection.item.name}</DialogTitle>
-            <DialogDescription className="mt-1.5 text-xs text-muted-foreground">
-              {mode === 'music'
-                ? 'Music kits are always given as def 1314 with music=<id>.'
-                : mode === 'souvenir'
-                  ? 'Optional tournament ids are sent with the give command.'
-                  : 'Quantity is limited to 1–100 per give.'}
-            </DialogDescription>
 
             <div className="mt-5 space-y-4">
               <div className="grid grid-cols-2 gap-2">
@@ -155,7 +133,7 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
                     value={countText}
                     onChange={(event) => setCountText(event.target.value)}
                     inputMode="numeric"
-                    className={cn('h-9 text-xs', !countValid && 'border-red-500/50')}
+                    className={cn('h-9 text-xs', !countValid && 'border-[#e02d2f]/70')}
                     aria-invalid={!countValid}
                   />
                 </label>
@@ -166,33 +144,14 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
                       value={musicText}
                       onChange={(event) => setMusicText(event.target.value)}
                       inputMode="numeric"
-                      className={cn('h-9 text-xs', !musicValid && 'border-red-500/50')}
+                      className={cn('h-9 text-xs', !musicValid && 'border-[#e02d2f]/70')}
                       aria-invalid={!musicValid}
                     />
                   </label>
                 )}
               </div>
-              {!countValid && <p className="text-[10px] text-red-300">Quantity must be a whole number between 1 and 100.</p>}
-              {!musicValid && <p className="text-[10px] text-red-300">Music kit id must be a positive whole number.</p>}
-
-              {mode === 'souvenir' && (
-                <div>
-                  <span className="field-label">Souvenir tournament ids (optional)</span>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {([['event', 'event'], ['stage', 'stage'], ['team0', 'team0'], ['team1', 'team1'], ['mvp', 'mvp']] as const).map(([key, label]) => (
-                      <Input
-                        key={key}
-                        value={tour[key]}
-                        onChange={(event) => setTour((current) => ({ ...current, [key]: event.target.value }))}
-                        placeholder={label}
-                        aria-label={`tournament_${key}`}
-                        inputMode="numeric"
-                        className="h-8 text-xs"
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+              {!countValid && <p className="text-[11px] text-[#e57373]">Quantity must be a whole number between 1 and 100.</p>}
+              {!musicValid && <p className="text-[11px] text-[#e57373]">Music kit id must be a positive whole number.</p>}
 
               <label className="block">
                 <span className="field-label">Name tag (optional)</span>
@@ -208,18 +167,9 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="field-label mb-0">Command preview</span>
-                  <span className="text-[9px] text-muted-foreground">server builds the real command</span>
+                  <span className="text-[11px] text-muted-foreground">server builds the real command</span>
                 </div>
                 <pre className="log-surface">{preview}</pre>
-              </div>
-
-              <div>
-                <span className="field-label">Review</span>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="detail-stat"><span>{mode === 'music' ? 'Give def' : 'Def index'}</span><strong>{displayDef}</strong></div>
-                  <div className="detail-stat"><span>Count</span><strong>{count ?? '—'}</strong></div>
-                  <div className="detail-stat"><span>{mode === 'music' ? 'Music' : 'Name'}</span><strong>{mode === 'music' ? musicId ?? '—' : name.trim() || 'none'}</strong></div>
-                </div>
               </div>
 
               <label className="flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
@@ -236,7 +186,7 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
                 </div>
               )}
               {result && (!result.ok || /^err/i.test(result.saved ?? '')) && (
-                <p className="text-[10px] leading-relaxed text-amber-200/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
+                <p className="text-[11px] leading-relaxed text-[#ffd740]/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
               )}
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -247,7 +197,7 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
                 <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={submitting}>
                   <X className="size-4" />{result?.ok ? 'Done' : 'Cancel'}
                 </Button>
-                {autosave && <span className="flex items-center gap-1 text-[9px] text-muted-foreground"><Save className="size-3" />backup written by save_inventory</span>}
+                {autosave && <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><Save className="size-3" />backup written by save_inventory</span>}
               </div>
             </div>
           </div>
