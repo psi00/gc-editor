@@ -26,6 +26,7 @@
     "build-cases": "node scripts/build-cases.mjs",
     "build-favicon": "node scripts/build-favicon.mjs",
     "prefetch-images": "node scripts/prefetch-images.mjs",
+    "prefetch-images-cs2": "node scripts/prefetch-images-cs2.mjs",
     "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {

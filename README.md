@@ -30,9 +30,10 @@ This serves the web app on port 5174. Simply navigate to `localhost:5174` in you
 With one-time setup, gc-editor can also run fully offline. Local image caching is also supported and requires approximately 5 GB of free space.
 
 ```bash
-npm run fetch-schema     # JSON schema for both catalogues (CS:GO is filtered, CS2 is upstream)
+npm run fetch-schema     # fetch JSON schema for both catalogues
 npm run build-cases      # case + collection names per game
-npm run prefetch-images  # optional, fetches artwork into imgs/ (CS:GO) and imgs/cs2/
+npm run prefetch-images  # optional, fetches artwork into imgs/ for CS:GO
+npm run prefetch-images-cs2  # optional, fetches artwork into imgs/cs2/
 ```
 
 For offline editing of `inventory.txt`, **close the game before saving changes** so it cannot overwrite your edits with its in-memory inventory.

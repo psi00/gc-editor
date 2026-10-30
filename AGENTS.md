@@ -16,16 +16,19 @@ React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
   command serves `dist/web` and the API on port 5174.
 - `EADDRINUSE 127.0.0.1:5174` means a stale Node process is holding the port.
   Kill the Node processes and restart. Don't change the port.
-- For one-time online setup, run `npm run fetch-schema` and then
-  `npm run prefetch-images`. Both handle CS:GO and CS2; pass `-- --game=cs2` (or
-  `--game=csgo`) to do one. After that, the app works offline. Run
-  `npm run build-cases` once per game to map skins to their case or collection.
-  The CS:GO index reads the local `items_game.txt` and `csgo_english.txt`; the
+- For one-time online setup, run `npm run fetch-schema` (both catalogues) and
+  then `npm run prefetch-images` for CS:GO or `npm run prefetch-images-cs2` for
+  CS2. After that, the app works offline. Run `npm run build-cases` once per game
+  to map skins to their case or collection. `fetch-schema` and `build-cases`
+  handle both games; pass `-- --game=cs2` (or `--game=csgo`) to do one. The
+  CS:GO index reads the local `items_game.txt` and `csgo_english.txt`; the
   CS2 index reads the trimmed `data/cs2/upstream/` copies that `fetch-schema`
   writes, because CS2 packs those scripts into `pak01` VPKs. Without the index
   the Case field shows `—`. The image prefetch is resumable. A full CS:GO cache
-  contains about 29,000 files and uses about 4 GB, so use `-- --only=skins`
-  first; CS2 is cached separately. Git ignores `data/*` and `imgs/*` by design.
+  contains about 29,000 files and uses about 4 GB, so use
+  `npm run prefetch-images -- --only=skins` first. CS2 writes to `imgs/cs2/` and
+  is fetched only by `prefetch-images-cs2`. Git ignores `data/*` and `imgs/*` by
+  design.
 - For save tests, point the editor's `?path=` parameter at a **copy** of
   `inventory.txt`, never the live file.
 - `npm test` uses Node's built-in test runner for VDF, inventory, and custom

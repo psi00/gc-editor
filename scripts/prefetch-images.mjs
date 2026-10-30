@@ -1,13 +1,14 @@
-// prefetch all thumbnails once when online into gitignored imgs/.
+// prefetch CS:GO thumbnails once when online into gitignored imgs/.
 // never fetched at runtime. missing files fall back to placeholder.
 //
-// Each game is cached separately: CS:GO in imgs/, CS2 in imgs/cs2/. The URL
-// prefix must match server/paths.js (`/imgs` and `/imgs/cs2`).
+// CS:GO uses imgs/; CS2 has its own script (prefetch-images-cs2) and imgs/cs2/.
+// The URL prefixes must match server/paths.js (`/imgs` and `/imgs/cs2`).
 //
-// usage: npm run prefetch-images [-- --game=csgo|cs2 --conc=16 --only=skins,stickers --limit=500]
+// usage: npm run prefetch-images [-- --conc=16 --only=skins,stickers --limit=500]
 import fs from 'node:fs'
 import path from 'node:path'
-import { GAMES, GAME_LABELS, normalizeGame } from '../server/games.js'
+import { pathToFileURL } from 'node:url'
+import { GAME_LABELS } from '../server/games.js'
 
 const ROOT = process.cwd()
 const args = Object.fromEntries(
@@ -20,7 +21,6 @@ const CONC = Number(process.env.CONC || args.conc || 12)
 const ONLY = String(args.only || process.env.ONLY || 'all')
 const LIMIT = Number(args.limit || 0)
 const RETRIES = 1
-const GAMES_TO_FETCH = args.game && args.game !== 'all' ? [normalizeGame(args.game)] : GAMES
 const FLAT_CATS = ['crates', 'collectibles', 'stickers', 'graffiti', 'music_kits', 'keychains', 'agents', 'patches', 'keys', 'tools', 'highlights', 'sticker_slabs']
 
 function fmt(n) { return n.toLocaleString('en-US') }
@@ -30,11 +30,11 @@ function bar(frac, w = 28) {
   return '█'.repeat(fill) + '░'.repeat(w - fill)
 }
 
-async function runGame(game) {
+export async function prefetchGame(game) {
   const schema = path.join(ROOT, 'data', game === 'csgo' ? '' : game, 'inventory.en.json')
   const out = game === 'csgo' ? path.join(ROOT, 'imgs') : path.join(ROOT, 'imgs', game)
   if (!fs.existsSync(schema)) {
-    console.warn(`${game}: missing ${path.relative(ROOT, schema)} - run npm run fetch-schema -- --game=${game} first, skipping`)
+    console.warn(`${game}: missing ${path.relative(ROOT, schema)} - run npm run fetch-schema first, skipping`)
     return { processed: 0, failed: 0, skipped: 0 }
   }
 
@@ -135,12 +135,11 @@ async function runGame(game) {
   return { processed: done, failed, skipped }
 }
 
-let any = false
-for (const game of GAMES_TO_FETCH) {
-  const result = await runGame(game)
-  if (result.processed > 0 || result.skipped > 0) any = true
-}
-if (!any) {
-  console.error('nothing prefetched - run npm run fetch-schema first')
-  process.exit(1)
+const isMain = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href
+if (isMain) {
+  const result = await prefetchGame('csgo')
+  if (result.processed === 0 && result.skipped === 0) {
+    console.error('nothing prefetched - run npm run fetch-schema first')
+    process.exit(1)
+  }
 }
