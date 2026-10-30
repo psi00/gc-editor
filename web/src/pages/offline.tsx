@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  CircleAlert, FileText, FolderOpen, Grid2X2, History, List, Loader2, RotateCcw, Save, SlidersHorizontal, SquareDashedMousePointer, Trash2, TriangleAlert, X,
+  CircleAlert, FileText, FolderOpen, Grid2X2, History, List, Loader2, Plus, RotateCcw, Save, SlidersHorizontal, SquareDashedMousePointer, Trash2, TriangleAlert, X,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { useReport } from '../lib/report'
-import type { InvDefaultEquips, InvItem, InvResponse, SchemaState, SettingsInfo } from '../lib/app-types'
+import type { GiveItem, InvDefaultEquips, InvItem, InvResponse, SchemaState, SettingsInfo } from '../lib/app-types'
 import { Button } from '../components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../components/ui/dialog'
 import { Input } from '../components/ui/input'
@@ -13,7 +13,9 @@ import { EmptyState } from '../components/common/empty-state'
 import { ItemGrid } from '../components/catalog/item-grid'
 import type { CardItem } from '../components/catalog/item-card'
 import { InventoryItemDialog } from '../components/inventory/inv-item-dialog'
+import { NewItemDialog } from '../components/inventory/new-item-dialog'
 import { itemKey, itemNameTag, resolveInventory, type ResolvedInventory } from '../lib/inventory-catalog'
+import { buildInventoryItems } from '../lib/inv-build'
 import { BROWSE_TABS, isKnifeDef, skinSource, type Kind, type Quality } from '../lib/catalog'
 import { cn } from '../lib/utils'
 import { CategoryBar } from '../components/shell/category-bar'
@@ -100,6 +102,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [itemOpen, setItemOpen] = useState(false)
+  const [newItemOpen, setNewItemOpen] = useState(false)
   const [selecting, setSelecting] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [catalog, setCatalog] = useState<Map<string, ResolvedInventory>>(new Map())
@@ -280,6 +283,19 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     setItems((current) => current.map((item) => (item.id === id ? { ...item, inventory: value } : item)))
     setDirty(true)
   }
+
+  // Stage a catalog selection into the in-memory items list. IDs and inventory
+  // slots continue from the current file; Save + backup writes and backs up.
+  const addFromGive = useCallback((give: GiveItem) => {
+    const count = Math.max(1, give.count ?? 1)
+    setItems((current) => [...current, ...buildInventoryItems(give, current)])
+    setDirty(true)
+    report(
+      { kind: 'inventory', label: `staged ${count} item${count === 1 ? '' : 's'} · def ${give.def_index}`, detail: 'not written until Save + backup' },
+      { title: `${count} item${count === 1 ? '' : 's'} added to the gallery` },
+      'info',
+    )
+  }, [report])
 
   const stageDelete = (item: InvItem) => {
     setItems((current) => current.filter((entry) => entry.id !== item.id))
@@ -510,10 +526,15 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
           <EmptyState
             icon={<FolderOpen className="size-6" />}
             title="No items in inventory.txt"
-            action={<Button variant="secondary" onClick={() => void load(path)}><RotateCcw className="size-4" />Reload</Button>}
+            action={
+              <>
+                <Button onClick={() => setNewItemOpen(true)}><Plus className="size-4" />New item</Button>
+                <Button variant="secondary" onClick={() => void load(path)}><RotateCcw className="size-4" />Reload</Button>
+              </>
+            }
           >
-            Give an item from the Live catalog, then reload here. Saving with no items writes an empty items block and
-            still creates a backup.
+            Add an item here or give one from the Live catalog, then reload. Saving with no items writes an empty items
+            block and still creates a backup.
           </EmptyState>
         </div>
       ) : (
@@ -541,6 +562,9 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
                   <button onClick={() => setView('grid')} aria-label="Grid view" aria-pressed={view === 'grid'} className={cn('view-button', view === 'grid' && 'active')}><Grid2X2 /></button>
                   <button onClick={() => setView('list')} aria-label="List view" aria-pressed={view === 'list'} className={cn('view-button', view === 'list' && 'active')}><List /></button>
                 </div>
+                <Button size="sm" onClick={() => setNewItemOpen(true)}>
+                  <Plus className="size-3.5" />New item
+                </Button>
                 {!selecting && (
                   <Button variant="secondary" size="sm" onClick={() => setSelecting(true)}>
                     <SquareDashedMousePointer className="size-3.5" />Select
@@ -613,6 +637,13 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
           }}
         />
       )}
+
+      <NewItemDialog
+        open={newItemOpen}
+        onOpenChange={setNewItemOpen}
+        schema={schema}
+        onAdd={addFromGive}
+      />
 
       <Dialog open={confirm !== null} onOpenChange={(open) => { if (!open) setConfirm(null) }}>
         <DialogContent className="max-w-md">

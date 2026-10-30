@@ -26,12 +26,15 @@ export type SkinSelection = {
 
 const SLOTS = 6
 
-export function SkinConfigurator({ selection, open, onOpenChange }: {
+export function SkinConfigurator({ selection, open, onOpenChange, onAdd }: {
   selection: SkinSelection
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** When set, the item is staged into inventory.txt instead of sent over RCON. */
+  onAdd?: (item: GiveItem) => void
 }) {
   const isGlove = isGloveDef(selection.weaponId)
+  const local = Boolean(onAdd)
   const report = useReport()
 
   const [wear, setWear] = useState(0.0001)
@@ -84,6 +87,12 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
       stattrak: !isGlove && !souvenir && stattrak.trim() !== '' ? Number(stattrak) : undefined,
       name: customName.trim() || undefined,
       stickers: isGlove ? [] : stickers.map((id) => (id ? { id: Number(id) } : null)),
+    }
+
+    if (onAdd) {
+      onAdd(item)
+      onOpenChange(false)
+      return
     }
 
     setSubmitting(true)
@@ -269,17 +278,21 @@ export function SkinConfigurator({ selection, open, onOpenChange }: {
                 </div>
               )}
 
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="field-label mb-0">Command preview</span>
+              {!local && (
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="field-label mb-0">Command preview</span>
+                  </div>
+                  <pre className="log-surface">{preview}</pre>
                 </div>
-                <pre className="log-surface">{preview}</pre>
-              </div>
+              )}
 
-              <label className="flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
-                <Checkbox checked={autosave} onCheckedChange={(checked) => setAutosave(checked === true)} />
-                Run <span className="font-mono text-[11px] text-foreground/80">save_inventory</span> after adding
-              </label>
+              {!local && (
+                <label className="flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
+                  <Checkbox checked={autosave} onCheckedChange={(checked) => setAutosave(checked === true)} />
+                  Run <span className="font-mono text-[11px] text-foreground/80">save_inventory</span> after adding
+                </label>
+              )}
 
               {error && <div className="log-surface err">{error}</div>}
               {result && (

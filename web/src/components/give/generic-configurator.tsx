@@ -30,12 +30,15 @@ function intOrUndefined(text: string) {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined
 }
 
-export function GenericConfigurator({ selection, open, onOpenChange }: {
+export function GenericConfigurator({ selection, open, onOpenChange, onAdd }: {
   selection: GenericSelection
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** When set, the item is staged into inventory.txt instead of sent over RCON. */
+  onAdd?: (item: GiveItem) => void
 }) {
   const mode = selection.kind === 'music' ? 'music' : 'generic'
+  const local = Boolean(onAdd)
   const report = useReport()
 
   const [countText, setCountText] = useState('1')
@@ -74,6 +77,12 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
         count,
         name: name.trim() || undefined,
       }
+
+    if (onAdd) {
+      onAdd(item)
+      onOpenChange(false)
+      return
+    }
 
     setSubmitting(true)
     setError('')
@@ -164,18 +173,22 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
                 />
               </label>
 
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="field-label mb-0">Command preview</span>
-                  <span className="text-[11px] text-muted-foreground">server builds the real command</span>
+              {!local && (
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="field-label mb-0">Command preview</span>
+                    <span className="text-[11px] text-muted-foreground">server builds the real command</span>
+                  </div>
+                  <pre className="log-surface">{preview}</pre>
                 </div>
-                <pre className="log-surface">{preview}</pre>
-              </div>
+              )}
 
-              <label className="flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
-                <Checkbox checked={autosave} onCheckedChange={(checked) => setAutosave(checked === true)} />
-                Run <span className="font-mono text-[11px] text-foreground/80">save_inventory</span> after adding
-              </label>
+              {!local && (
+                <label className="flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
+                  <Checkbox checked={autosave} onCheckedChange={(checked) => setAutosave(checked === true)} />
+                  Run <span className="font-mono text-[11px] text-foreground/80">save_inventory</span> after adding
+                </label>
+              )}
 
               {error && <div className="log-surface err">{error}</div>}
               {result && (
@@ -197,7 +210,7 @@ export function GenericConfigurator({ selection, open, onOpenChange }: {
                 <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={submitting}>
                   <X className="size-4" />{result?.ok ? 'Done' : 'Cancel'}
                 </Button>
-                {autosave && <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><Save className="size-3" />backup written by save_inventory</span>}
+                {!local && autosave && <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><Save className="size-3" />backup written by save_inventory</span>}
               </div>
             </div>
           </div>
