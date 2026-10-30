@@ -190,7 +190,7 @@ const GROUP_BY_NAME: Record<string, string> = {
   'sg 553': 'rifles', 'ssg 08': 'rifles', awp: 'rifles', 'scar-20': 'rifles', g3sg1: 'rifles',
   'desert eagle': 'pistols', 'dual berettas': 'pistols', 'five-seven': 'pistols', 'glock-18': 'pistols',
   p2000: 'pistols', p250: 'pistols', 'tec-9': 'pistols', 'usp-s': 'pistols', 'cz75-auto': 'pistols',
-  'r8 revolver': 'pistols', 'zeus x27': 'pistols',
+  'r8 revolver': 'pistols', 'zeus x27': 'special',
   'mac-10': 'smgs', 'mp5-sd': 'smgs', mp7: 'smgs', mp9: 'smgs', p90: 'smgs', 'pp-bizon': 'smgs', 'ump-45': 'smgs',
   m249: 'heavy', negev: 'heavy', 'mag-7': 'heavy', nova: 'heavy', 'sawed-off': 'heavy', xm1014: 'heavy',
 }
@@ -200,12 +200,13 @@ export const WEAPON_GROUP_LABELS: Record<string, string> = {
   pistols: 'Pistols',
   smgs: 'SMGs',
   heavy: 'Heavy',
+  special: 'Special',
   knives: 'Knives',
   gloves: 'Gloves',
   other: 'Other',
 }
 
-export const WEAPON_GROUP_ORDER = ['rifles', 'pistols', 'smgs', 'heavy', 'knives', 'gloves', 'other']
+export const WEAPON_GROUP_ORDER = ['rifles', 'pistols', 'smgs', 'heavy', 'special', 'knives', 'gloves', 'other']
 
 export function weaponGroup(w: Weapon) {
   if (isGloveWeapon(w)) return 'gloves'

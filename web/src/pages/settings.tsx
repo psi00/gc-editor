@@ -154,87 +154,133 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
 
   return (
     <main className="page-shell pb-16 pt-7">
-      <div className="grid items-start gap-4 xl:grid-cols-2">
-        <section className="panel">
-          <h2 className="flex items-center gap-2 text-sm font-medium"><Wifi className="size-4 text-primary" />RCON</h2>
+      <div className="grid gap-4 xl:min-h-[calc(100vh-156px)] xl:grid-cols-2 xl:items-stretch">
+        <div className="flex min-w-0 flex-col gap-4">
+          <section className="panel">
+            <h2 className="flex items-center gap-2 text-sm font-medium"><Wifi className="size-4 text-primary" />RCON</h2>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <label>
-              <span className="field-label">Host</span>
-              <Input
-                value={host}
-                onChange={(event) => { setHost(event.target.value); store.host = event.target.value; store.save() }}
-                placeholder="127.0.0.1"
-                className={cn('h-9 text-xs', !hostValid && 'border-err-strong/70')}
-                autoComplete="off"
-              />
-            </label>
-            <label>
-              <span className="field-label">Port</span>
-              <Input
-                value={port}
-                onChange={(event) => { setPort(event.target.value); store.port = event.target.value; store.save() }}
-                placeholder="37016"
-                inputMode="numeric"
-                className={cn('h-9 text-xs', !portValid && 'border-err-strong/70')}
-                autoComplete="off"
-              />
-            </label>
-          </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <label>
+                <span className="field-label">Host</span>
+                <Input
+                  value={host}
+                  onChange={(event) => { setHost(event.target.value); store.host = event.target.value; store.save() }}
+                  placeholder="127.0.0.1"
+                  className={cn('h-9 text-xs', !hostValid && 'border-err-strong/70')}
+                  autoComplete="off"
+                />
+              </label>
+              <label>
+                <span className="field-label">Port</span>
+                <Input
+                  value={port}
+                  onChange={(event) => { setPort(event.target.value); store.port = event.target.value; store.save() }}
+                  placeholder="37016"
+                  inputMode="numeric"
+                  className={cn('h-9 text-xs', !portValid && 'border-err-strong/70')}
+                  autoComplete="off"
+                />
+              </label>
+            </div>
 
-          <label className="mt-2 block">
-            <span className="field-label">Password</span>
-            <div className="flex items-center gap-2">
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(event) => { setPassword(event.target.value); store.password = event.target.value; store.save() }}
-                placeholder="rcon password"
-                className="h-9 flex-1 text-xs"
-                autoComplete="new-password"
-                spellCheck={false}
-              />
-              <Button variant="secondary" size="icon" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((value) => !value)}>
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            <label className="mt-2 block">
+              <span className="field-label">Password</span>
+              <div className="flex items-center gap-2">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(event) => { setPassword(event.target.value); store.password = event.target.value; store.save() }}
+                  placeholder="rcon password"
+                  className="h-9 flex-1 text-xs"
+                  autoComplete="new-password"
+                  spellCheck={false}
+                />
+                <Button variant="secondary" size="icon" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((value) => !value)}>
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </Button>
+              </div>
+            </label>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={() => void test('ping')} disabled={testing !== null || !hostValid || !portValid}>
+                {testing === 'ping' ? <Loader2 className="size-3.5 animate-spin" /> : <Wifi className="size-3.5" />}Ping
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => void test('status')} disabled={testing !== null || !hostValid || !portValid}>
+                {testing === 'status' ? <Loader2 className="size-3.5 animate-spin" /> : <WifiOff className="size-3.5" />}Status
               </Button>
             </div>
-          </label>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => void test('ping')} disabled={testing !== null || !hostValid || !portValid}>
-              {testing === 'ping' ? <Loader2 className="size-3.5 animate-spin" /> : <Wifi className="size-3.5" />}Ping
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => void test('status')} disabled={testing !== null || !hostValid || !portValid}>
-              {testing === 'status' ? <Loader2 className="size-3.5 animate-spin" /> : <WifiOff className="size-3.5" />}Status
-            </Button>
-          </div>
+            {(reply || status.raw) && (
+              <div className={cn('log-surface mt-3', (reply?.ok ?? status.health === 'ready') ? 'ok' : 'err')}>
+                {reply ? `${reply.command} -> ${reply.raw}` : `status -> ${status.raw}`}
+                {'\n'}
+                <span className="text-white/45">{rconHint(reply?.raw ?? status.raw)}</span>
+              </div>
+            )}
+            {error && <div className="log-surface err mt-3">{error}</div>}
+          </section>
 
-          {(reply || status.raw) && (
-            <div className={cn('log-surface mt-3', (reply?.ok ?? status.health === 'ready') ? 'ok' : 'err')}>
-              {reply ? `${reply.command} -> ${reply.raw}` : `status -> ${status.raw}`}
-              {'\n'}
-              <span className="text-white/45">{rconHint(reply?.raw ?? status.raw)}</span>
+          <section className="panel flex min-h-0 flex-1 flex-col">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-medium"><Palette className="size-4 text-primary" />Custom CSS</h2>
+              <div className="flex items-center gap-2">
+                <span className={cn('chip', cssDirty ? 'chip-warn' : css.trim() ? 'chip-ok' : '')}>
+                  {cssDirty ? 'unsaved' : css.trim() ? 'active' : 'empty'}
+                </span>
+                <span className="chip">{css.length.toLocaleString()} chars</span>
+              </div>
             </div>
-          )}
-          {error && <div className="log-surface err mt-3">{error}</div>}
-        </section>
 
-        <section className="panel">
-          <h2 className="flex items-center gap-2 text-sm font-medium"><FolderOpen className="size-4 text-primary" />Game directory</h2>
-          <div className="mt-3 flex gap-2">
-            <Input
-              value={gameDir}
-              onChange={(event) => setGameDir(event.target.value)}
-              placeholder={settings?.gameDir ?? 'absolute path to game dir'}
-              aria-label="Game directory override"
-              className="h-9 flex-1 font-mono text-xs"
+            <textarea
+              value={css}
+              onChange={(event) => setCss(event.target.value)}
+              spellCheck={false}
+              aria-label="Custom CSS"
+              placeholder=":root { --primary: 280 90% 62%; }"
+              className="log-surface mt-3 min-h-64 w-full flex-1 resize-y"
             />
-            <Button size="sm" onClick={() => void saveGameDir()} disabled={savingDir}>
-              {savingDir ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}Save override
-            </Button>
-          </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={() => void writeCss(css, 'save')} disabled={cssBusy !== null || !cssDirty}>
+                {cssBusy === 'save' ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}Save and apply
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => void loadCss()} disabled={cssBusy !== null}>
+                {cssBusy === 'load' ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}Reload from disk
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => void writeCss('', 'clear')} disabled={cssBusy !== null || !css.trim()}>
+                {cssBusy === 'clear' ? <Loader2 className="size-3.5 animate-spin" /> : <Eraser className="size-3.5" />}Clear
+              </Button>
+              <span className="text-[11px] text-muted-foreground">
+                {cssLimit ? `${Math.round(cssLimit / 1024)} KB limit` : ''}
+              </span>
+            </div>
+
+            {cssError && <div className="log-surface err mt-3">{cssError}</div>}
+          </section>
+        </div>
+
+        <section className="panel min-w-0">
+          <h2 className="flex items-center gap-2 text-sm font-medium"><FolderOpen className="size-4 text-primary" />Game directories</h2>
+          {(['csgo', 'cs2'] as GameId[]).map((game) => (
+            <div key={game} className="mt-3">
+              <span className="field-label">{GAME_LABELS[game]}</span>
+              <div className="flex gap-2">
+                <Input
+                  value={dirs[game]}
+                  onChange={(event) => setDirs((current) => ({ ...current, [game]: event.target.value }))}
+                  placeholder={settings?.games?.[game]?.gameDir ?? settings?.gameDirs?.[game] ?? 'absolute path to game dir'}
+                  aria-label={`${GAME_LABELS[game]} directory override`}
+                  className="h-9 flex-1 font-mono text-xs"
+                />
+                <Button size="sm" onClick={() => void saveGameDir(game)} disabled={savingGame !== null}>
+                  {savingGame === game ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}Save
+                </Button>
+              </div>
+            </div>
+          ))}
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-            Saving re-reads every path. Leave blank to auto-detect.
+            Saving re-reads every path. Leave blank to auto-detect. Both installs can be active at once. The Gallery
+            switch chooses the catalogue for inventory.txt; Live always uses CS:GO because RCON only supports it.
           </p>
 
           <div className="mt-4 overflow-hidden rounded-xl border border-white/[.06]">
@@ -254,48 +300,10 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
             </table>
           </div>
 
-          <details className="mt-4">
+          <details className="mt-4 xl:hidden">
             <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">Current settings JSON</summary>
             <pre className="log-surface mt-2 max-h-64 overflow-auto">{JSON.stringify(settings, null, 2)}</pre>
           </details>
-        </section>
-
-        <section className="panel xl:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-sm font-medium"><Palette className="size-4 text-primary" />Custom CSS</h2>
-            <div className="flex items-center gap-2">
-              <span className={cn('chip', cssDirty ? 'chip-warn' : css.trim() ? 'chip-ok' : '')}>
-                {cssDirty ? 'unsaved' : css.trim() ? 'active' : 'empty'}
-              </span>
-              <span className="chip">{css.length.toLocaleString()} chars</span>
-            </div>
-          </div>
-
-          <textarea
-            value={css}
-            onChange={(event) => setCss(event.target.value)}
-            spellCheck={false}
-            aria-label="Custom CSS"
-            placeholder=":root { --primary: 280 90% 62%; }"
-            className="log-surface mt-3 h-64 w-full resize-y"
-          />
-
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={() => void writeCss(css, 'save')} disabled={cssBusy !== null || !cssDirty}>
-              {cssBusy === 'save' ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}Save and apply
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => void loadCss()} disabled={cssBusy !== null}>
-              {cssBusy === 'load' ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}Reload from disk
-            </Button>
-            <Button variant="danger" size="sm" onClick={() => void writeCss('', 'clear')} disabled={cssBusy !== null || !css.trim()}>
-              {cssBusy === 'clear' ? <Loader2 className="size-3.5 animate-spin" /> : <Eraser className="size-3.5" />}Clear
-            </Button>
-            <span className="text-[11px] text-muted-foreground">
-              {cssLimit ? `${Math.round(cssLimit / 1024)} KB limit` : ''}
-            </span>
-          </div>
-
-          {cssError && <div className="log-surface err mt-3">{cssError}</div>}
         </section>
       </div>
     </main>
