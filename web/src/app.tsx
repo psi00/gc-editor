@@ -11,6 +11,8 @@ import { LivePage } from './pages/live'
 import { OfflinePage } from './pages/offline'
 import { ActivityPage } from './pages/activity'
 import { SettingsPage } from './pages/settings'
+import { setImageGame, type GameId } from './lib/catalog'
+import { resetInventoryCatalog } from './lib/inventory-catalog'
 import type { RconHealth, RconStatus, SchemaState, SettingsInfo } from './lib/app-types'
 import './styles.css'
 
@@ -34,7 +36,8 @@ function Shell() {
   const [offlineDirty, setOfflineDirty] = useState(false)
   const [pendingNav, setPendingNav] = useState<{ run: () => void } | null>(null)
   const [settings, setSettings] = useState<SettingsInfo | null>(null)
-  const [schema, setSchema] = useState<SchemaState>({ status: 'loading', weapons: [], counts: {}, cached: false })
+  const [galleryGame, setGalleryGame] = useState<GameId>('csgo')
+  const [schema, setSchema] = useState<SchemaState>({ status: 'loading', weapons: [], counts: {}, cached: false, game: 'csgo' })
   const [status, setStatus] = useState<RconStatus>({ health: 'unknown', raw: '', at: null, checking: false })
 
   const reloadSettings = useCallback(async () => {
@@ -42,18 +45,26 @@ function Shell() {
       const response = await api('/api/settings')
       if (response.error) throw new Error(String(response.error))
       setSettings(response as SettingsInfo)
+      // the server remembers the gallery's last catalogue choice
+      setGalleryGame(response.game === 'cs2' ? 'cs2' : 'csgo')
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
       report({ kind: 'error', label: 'load /api/settings', raw: message, ok: false })
     }
   }, [report])
 
-  const reloadSchema = useCallback(async () => {
-    setSchema((current) => ({ ...current, status: 'loading', error: undefined }))
+  const reloadSchema = useCallback(async (game: GameId) => {
+    // clear the previous game's weapons immediately so Live can never show a
+    // CS2 def while it is asking for CS:GO (or the reverse)
+    setImageGame(game)
+    setSchema((current) => current.game === game
+      ? { ...current, status: 'loading', error: undefined }
+      : { status: 'loading', weapons: [], counts: {}, cached: false, game })
     try {
+      const query = `?game=${game}`
       const [weaponsResponse, countsResponse] = await Promise.all([
-        api('/api/schema/weapons'),
-        api('/api/schema/counts'),
+        api(`/api/schema/weapons${query}`),
+        api(`/api/schema/counts${query}`),
       ])
       if (weaponsResponse.error) throw new Error(String(weaponsResponse.error))
       if (countsResponse.error) throw new Error(String(countsResponse.error))
@@ -62,16 +73,17 @@ function Shell() {
       const counts = countsResponse.counts && typeof countsResponse.counts === 'object' ? countsResponse.counts : {}
       const cached = Boolean(countsResponse.cached)
 
-      setSchema({ status: 'ready', weapons, counts, cached })
+      setImageGame(game)
+      setSchema({ status: 'ready', weapons, counts, cached, game })
       report({
         kind: 'schema',
         label: 'schema cache loaded',
         ok: true,
-        detail: `${weapons.length} weapons · ${Object.keys(counts).length} categories${cached ? '' : ' · cache empty'}`,
+        detail: `${game === 'cs2' ? 'CS2' : 'CS:GO'} · ${weapons.length} weapons · ${Object.keys(counts).length} categories${cached ? '' : ' · cache empty'}`,
       })
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
-      setSchema({ status: 'error', weapons: [], counts: {}, cached: false, error: message })
+      setSchema({ status: 'error', weapons: [], counts: {}, cached: false, game, error: message })
       report({ kind: 'error', label: 'load schema cache', raw: message, ok: false }, { title: 'Schema request failed', body: message }, 'err')
     }
   }, [report])
@@ -94,7 +106,8 @@ function Shell() {
 
   useEffect(() => {
     void reloadSettings()
-    void reloadSchema()
+    // Live is the initial page, and Live is always CS:GO (RCON only exists there)
+    void reloadSchema('csgo')
     void checkStatus()
   }, [reloadSettings, reloadSchema, checkStatus])
 
@@ -124,12 +137,39 @@ function Shell() {
     run()
   }, [offlineDirty])
 
+  const game = galleryGame
+
+  const changeGame = (next: GameId) => {
+    if (next === game) return
+    navigate(() => {
+      void (async () => {
+        try {
+          const response = await api('/api/settings', { method: 'POST', body: JSON.stringify({ game: next }) })
+          if (response.error) throw new Error(String(response.error))
+          // an older server ignores `game` and answers without it; say so instead
+          // of silently reloading the same catalogue
+          if (!response.game) throw new Error('this server is still running the previous build - restart it and try again')
+          setGalleryGame(next)
+          resetInventoryCatalog()
+          await reloadSchema(next)
+          await reloadSettings()
+          report({ kind: 'settings', label: 'gallery catalogue switched', ok: true, detail: next === 'cs2' ? 'CS2' : 'CS:GO' })
+        } catch (cause) {
+          const message = cause instanceof Error ? cause.message : String(cause)
+          report({ kind: 'error', label: `switch gallery catalogue to ${next}`, raw: message, ok: false }, { title: 'Could not switch catalogue', body: message }, 'err')
+        }
+      })()
+    })
+  }
+
   const goMode = (next: Mode) => {
     if (page === 'mode' && mode === next) return
     navigate(() => {
       setMode(next)
       setPage('mode')
       setOfflineDirty(false)
+      // Live reads the CS:GO catalogue; Gallery restores its own choice
+      void reloadSchema(next === 'live' ? 'csgo' : galleryGame)
     })
   }
 
@@ -157,6 +197,8 @@ function Shell() {
         onPage={goPage}
         status={status}
         onOpenSettings={() => goPage('settings')}
+        game={game}
+        onGame={changeGame}
       />
 
       {page === 'activity' ? (
@@ -170,13 +212,20 @@ function Shell() {
         />
       ) : mode === 'live' ? (
         <LivePage
+          key="live"
           schema={schema}
-          onReloadSchema={() => void reloadSchema()}
+          onReloadSchema={() => void reloadSchema('csgo')}
           rconHealth={status.health}
           onOpenSettings={() => goPage('settings')}
         />
       ) : (
-        <OfflinePage settings={settings} schema={schema} onDirtyChange={setOfflineDirty} />
+        <OfflinePage
+          key={`gallery-${galleryGame}`}
+          game={galleryGame}
+          settings={settings}
+          schema={schema}
+          onDirtyChange={setOfflineDirty}
+        />
       )}
 
       <Dialog open={pendingNav !== null} onOpenChange={(open) => { if (!open) setPendingNav(null) }}>

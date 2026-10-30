@@ -1,4 +1,4 @@
-import type { Weapon } from './catalog'
+import type { GameId, Weapon } from './catalog'
 
 export type Tab = 'live' | 'offline' | 'activity' | 'settings'
 
@@ -17,10 +17,36 @@ export type SchemaState = {
   weapons: Weapon[]
   counts: Record<string, number>
   cached: boolean
+  game: GameId
   error?: string
 }
 
+export type GameSettings = {
+  game: GameId
+  gameDir: string | null
+  gameDirEnv: string
+  contentDir: string | null
+  gcDir: string | null
+  inventoryTxt: string | null
+  itemsGameTxt: string | null
+  configTxt: string | null
+  csgoEnglishTxt: string | null
+  dataDir: string | null
+  schemaCache: string | null
+  schemaMeta: string | null
+  casesCache: string | null
+  imgsGameDir: string | null
+  imgsUrlPrefix: string
+  inventoryExists: boolean
+  itemsGameExists: boolean
+  schemaCached: boolean
+  casesCached: boolean
+}
+
 export type SettingsInfo = {
+  game: GameId
+  games: Record<GameId, GameSettings>
+  gameDirs: Record<GameId, string | null>
   gameDir: string | null
   inventoryTxt: string | null
   itemsGameTxt: string | null
@@ -28,12 +54,16 @@ export type SettingsInfo = {
   dataDir: string | null
   schemaCache: string | null
   schemaMeta: unknown
+  casesCache: string | null
   imgsDir: string | null
+  imgsGameDir: string | null
+  imgsUrlPrefix: string
   userCacheDir: string | null
   customCss: string | null
   inventoryExists: boolean
   itemsGameExists: boolean
   schemaCached: boolean
+  casesCached: boolean
   customCssExists: boolean
 }
 
@@ -87,6 +117,7 @@ export type InvItem = {
 export type InvDefaultEquips = Record<string, { class_id: number; slot_id: number }>
 
 export type InvResponse = {
+  game: GameId
   path: string
   items: InvItem[]
   default_equips: InvDefaultEquips

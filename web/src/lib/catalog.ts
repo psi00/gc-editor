@@ -1,6 +1,26 @@
 // Schema classification + display helpers. All of these are UI-only:
 // the server stays the source of truth for the give command.
 
+export type GameId = 'csgo' | 'cs2'
+
+export const GAME_LABELS: Record<GameId, string> = { csgo: 'CS:GO', cs2: 'CS2' }
+
+// CS:GO keeps /imgs (the original URL contract); CS2 is namespaced so the same
+// def/paint pair can never show the wrong game's cached artwork.
+let imageGame: GameId = 'csgo'
+
+export function setImageGame(game: GameId | string) {
+  imageGame = game === 'cs2' ? 'cs2' : 'csgo'
+}
+
+export function getImageGame(): GameId {
+  return imageGame
+}
+
+function imageRoot(game: GameId = imageGame) {
+  return game === 'csgo' ? '/imgs' : `/imgs/${game}`
+}
+
 export type Weapon = { def_index: number; name: string; thumb?: string }
 export type Rarity = { id?: string; name: string; color: string }
 export type Skin = { paint: number; name: string; rarity?: Rarity; image?: string; case?: string | null; collection?: string | null }
@@ -20,6 +40,7 @@ export type Kind =
   | 'agents'
   | 'cases'
   | 'keys'
+  | 'keychains'
   | 'music'
   | 'raw'
 
@@ -31,6 +52,7 @@ export const KINDS: { id: Kind; label: string; category?: string }[] = [
   { id: 'agents', label: 'Agents', category: 'agents' },
   { id: 'cases', label: 'Cases', category: 'crates' },
   { id: 'keys', label: 'Keys', category: 'keys' },
+  { id: 'keychains', label: 'Keychains', category: 'keychains' },
   { id: 'music', label: 'Music', category: 'music_kits' },
   { id: 'raw', label: 'Manual' },
 ]
@@ -45,6 +67,7 @@ export const BROWSE_TABS: { id: Exclude<Kind, 'raw'>; label: string }[] = [
   { id: 'agents', label: 'Agents' },
   { id: 'cases', label: 'Cases' },
   { id: 'keys', label: 'Keys' },
+  { id: 'keychains', label: 'Keychains' },
   { id: 'music', label: 'Music' },
 ]
 
@@ -86,12 +109,12 @@ export function categoryForKind(kind: Kind): string | null {
   return KINDS.find((k) => k.id === kind)?.category ?? null
 }
 
-export function skinImage(weaponId: number, paint: number) {
-  return `/imgs/skins/${weaponId}_${paint}.png`
+export function skinImage(weaponId: number, paint: number, game: GameId = imageGame) {
+  return `${imageRoot(game)}/skins/${weaponId}_${paint}.png`
 }
 
-export function categoryImage(category: string, defIndex: string | number) {
-  return `/imgs/${category}/${defIndex}.png`
+export function categoryImage(category: string, defIndex: string | number, game: GameId = imageGame) {
+  return `${imageRoot(game)}/${category}/${defIndex}.png`
 }
 
 export type Quality = 'all' | 'normal' | 'stattrak' | 'souvenir'

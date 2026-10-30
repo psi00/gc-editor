@@ -84,7 +84,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
     setSkinsLoading(true)
     setSkinsError('')
     setSkinsWeaponId(null)
-    api(`/api/schema/skins/${activeWeaponId}`)
+    api(`/api/schema/skins/${activeWeaponId}?game=${schema.game}`)
       .then((response) => {
         if (cancelled) return
         if (response.error) throw new Error(String(response.error))
@@ -105,7 +105,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
       })
       .finally(() => { if (!cancelled) setSkinsLoading(false) })
     return () => { cancelled = true }
-  }, [skinKind, activeWeaponId, reloadKey, report])
+  }, [skinKind, activeWeaponId, reloadKey, report, schema.game])
 
   useEffect(() => {
     if (!category) return
@@ -115,7 +115,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
     setCatItemsCategory(null)
     const timer = window.setTimeout(async () => {
       try {
-        const response = await api(`/api/schema/category/${category}?limit=${CATEGORY_LIMIT}&q=${encodeURIComponent(catQuery)}`)
+        const response = await api(`/api/schema/category/${category}?limit=${CATEGORY_LIMIT}&q=${encodeURIComponent(catQuery)}&game=${schema.game}`)
         if (cancelled) return
         if (response.error) throw new Error(String(response.error))
         const list: CategoryItem[] = Array.isArray(response.items) ? response.items : []
@@ -141,7 +141,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
       }
     }, catQuery ? 300 : 0)
     return () => { cancelled = true; window.clearTimeout(timer) }
-  }, [category, catQuery, reloadKey, report])
+  }, [category, catQuery, reloadKey, report, schema.game])
 
   // only trust data fetched for the current weapon/category: avoids rendering
   // the previous weapon's paints (and bogus /imgs URLs) for one frame.
@@ -197,7 +197,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
       return filteredSkins.slice(0, visible).map((skin) => ({
         id: String(skin.paint),
         name: skin.name,
-        image: skinImage(activeWeaponId, skin.paint),
+        image: skinImage(activeWeaponId, skin.paint, schema.game),
         accent: skin.rarity?.color,
         meta: skinSource(skin),
         fallback: String(skin.paint),
@@ -206,7 +206,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
     return filteredCategory.slice(0, visible).map((item) => ({
       id: item.def_index,
       name: item.name,
-      image: categoryImage(category ?? '', item.def_index),
+      image: categoryImage(category ?? '', item.def_index, schema.game),
       accent: item.rarity?.color,
       fallback: item.def_index,
     }))
@@ -461,6 +461,7 @@ function BrowseOverview({ weapons, counts, loading, onPick }: {
     { id: 'agents', label: 'Agents', count: counts.agents, hint: 'CT and T models' },
     { id: 'cases', label: 'Cases', count: counts.crates, hint: 'containers' },
     { id: 'keys', label: 'Keys', count: counts.keys, hint: 'case keys' },
+    { id: 'keychains', label: 'Keychains', count: counts.keychains, hint: 'charms · CS2' },
     { id: 'music', label: 'Music', count: counts.music_kits, hint: 'music kits' },
   ]
 
@@ -468,7 +469,7 @@ function BrowseOverview({ weapons, counts, loading, onPick }: {
     <section aria-label="Catalog categories">
       <h2 className="text-lg font-medium">Browse the catalog</h2>
       <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-muted-foreground">
-        Pick a category to load it from the local CS:GO cache. Every item opens a configurator that shows the exact
+        Pick a category to load it from the local catalogue. Every item opens a configurator that shows the exact
         give_item line before sending.
       </p>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

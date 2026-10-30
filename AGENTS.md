@@ -1,9 +1,9 @@
 # gc-editor agent instructions
 
-gc-editor is a local inventory workbench for the GT-610 fork of csgo_gc. It has
-a zero-dependency Node HTTP backend in `server/` and a React single-page app in
-`web/`. It has no lint. Verify changes with `npm test`, `npx tsc --noemit`, and
-`npm run build`; CI runs the same commands.
+gc-editor is a local inventory workbench for the GT-610 fork of csgo_gc, for
+CS:GO and CS2. It has a zero-dependency Node HTTP backend in `server/` and a
+React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
+`npx tsc --noemit`, and `npm run build`; CI runs the same commands.
 
 ## Run and verify
 
@@ -17,13 +17,15 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
 - `EADDRINUSE 127.0.0.1:5174` means a stale Node process is holding the port.
   Kill the Node processes and restart. Don't change the port.
 - For one-time online setup, run `npm run fetch-schema` and then
-  `npm run prefetch-images`. After that, the app works offline. Run
-  `npm run build-cases` once to map skins to their case or collection (it reads
-  the local `items_game.txt` and `csgo_english.txt` and writes
-  `data/cases.json`); without it the Case field
-  shows `—`. The image prefetch is resumable. A full cache contains about
-  29,000 files and uses about 4 GB, so use `-- --only=skins` first. Git ignores
-  `data/*.json` and `imgs/*` by design.
+  `npm run prefetch-images`. Both handle CS:GO and CS2; pass `-- --game=cs2` (or
+  `--game=csgo`) to do one. After that, the app works offline. Run
+  `npm run build-cases` once per game to map skins to their case or collection.
+  The CS:GO index reads the local `items_game.txt` and `csgo_english.txt`; the
+  CS2 index reads the trimmed `data/cs2/upstream/` copies that `fetch-schema`
+  writes, because CS2 packs those scripts into `pak01` VPKs. Without the index
+  the Case field shows `—`. The image prefetch is resumable. A full CS:GO cache
+  contains about 29,000 files and uses about 4 GB, so use `-- --only=skins`
+  first; CS2 is cached separately. Git ignores `data/*` and `imgs/*` by design.
 - For save tests, point the editor's `?path=` parameter at a **copy** of
   `inventory.txt`, never the live file.
 - `npm test` uses Node's built-in test runner for VDF, inventory, and custom
@@ -41,6 +43,8 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
 
 - `server/` contains the whole backend, including HTTP, RCON, VDF, inventory,
   and schema code. It uses only Node builtins and has zero dependencies.
+  `server/games.js` is the single source for the supported game ids, labels,
+  default install paths, and env var names.
 - `web/` is the only app and contains the Vite root, Tailwind config, and PostCSS
   config. `web/postcss.config.js` points Tailwind at `web/tailwind.config.js` so
   builds work from the repo root. Don't move these files.
@@ -53,14 +57,18 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
 ## Frozen backend contract
 
 - Add fields only. Never rename or remove an `/api/*` path, method, or JSON
-  field. The API shape is the contract.
+  field. The API shape is the contract. Per-game data is additive:
+  `/api/settings` keeps the active game's top-level path fields and adds `game`,
+  `games`, and `gameDirs`; schema and inventory responses add `game`, and those
+  routes accept a `?game=` query parameter.
 - RCON replies are verbatim GC text starting with `OK ` or `ERR `. Transport
   failures return `{ ok: false, raw: "ERR ..." }` with HTTP 200.
 - The server builds and quotes the `give_item` string for `POST /api/rcon/give`.
   It also runs `save_inventory` unless the request sets `autosave: false`.
-- Keep the image URLs unchanged. Use `/imgs/skins/<weapon>_<paint>.png`, where
-  `0` means vanilla, and `/imgs/<cat>/<id>.png` for everything else. A missing
-  file produces a placeholder and is never fatal.
+- Keep the CS:GO image URLs unchanged. Use `/imgs/skins/<weapon>_<paint>.png`,
+  where `0` means vanilla, and `/imgs/<cat>/<id>.png` for everything else. CS2
+  uses the same shape with an `/imgs/cs2` prefix. A missing file produces a
+  placeholder and is never fatal.
 - Schema category endpoints default to 500 rows. Send `?q=` for large sets.
   Stickers have more than 11,000 rows, so never load them all.
 - Always give music kits with `give_item 1314 music=<id>`. Get their art from
@@ -91,16 +99,44 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
 - The UI stages single and bulk offline deletes. It does not write the file until
   you save, which also creates a backup.
 
-## Domain facts (verified against the cache and GC data)
+## Games and catalogues
 
-- **The catalog is CS:GO, not CS2.** ByMykel's upstream JSON tracks CS2, so
-  `scripts/fetch-schema.mjs` filters every download through
+- Both games can be installed side by side. Steam names them `csgo legacy`
+  (CS:GO) and `Counter-Strike Global Offensive` (CS2). CS:GO content is
+  `<dir>/csgo`; CS2 nests it under `<dir>/game/csgo`. The GC lives in `csgo_gc/`
+  and `game/csgo_gc/` respectively. `server/paths.js` accepts either the install
+  root or the `game/` directory for CS2. Override with `CSGO_LEGACY_DIR` and
+  `CS2_DIR`, or the per-game fields in Settings.
+- The Gallery owns the game choice. Its header switch picks CS:GO or CS2 for the
+  inventory editor and stores that choice on the server
+  (`POST /api/settings { "game": "cs2" }`). Live is always CS:GO: RCON only works
+  with the CS:GO GC, so Live never follows the Gallery switch and hides it.
+- Schema and inventory reads take a `?game=csgo|cs2` query parameter, so the
+  client is explicit instead of relying on server state. `/api/schema/*` accepts
+  it on every route; `/api/inventory` and `/api/inventory/backups` use it for the
+  default path and `/api/inventory/save` accepts `game` when no `path` is sent.
+- CS:GO keeps the original `data/` and `imgs/` layout and the original
+  `/imgs/...` URLs. CS2 uses `data/cs2/` (schema, meta, `cases.json`, trimmed
+  `upstream/`) and `imgs/cs2/`, served as `/imgs/cs2/...`. Never put CS2 art on a
+  CS:GO URL: the same def/paint can exist in both games with different art.
+- **The CS:GO catalogue is filtered to CS:GO, not CS2.** ByMykel's upstream JSON
+  tracks CS2, so `scripts/fetch-schema.mjs` filters the CS:GO copy through
   `scripts/csgo-whitelist.json`. The whitelist uses the final CS:GO
   `items_game.txt`, GameTracking-CSGO `e63fc7f`, item 996, and music def 70.
-  Never serve raw ByMykel data. The filter drops the CS2-only `keychains`,
-  `highlights`, and `sticker_slabs` categories. It leaves `graffiti` unfiltered
-  because there is no comparable id namespace. Run `npm run filter-schema` to
-  reapply the filter. It is idempotent and creates one `.pre-csgo.bak`.
+  Never serve raw upstream data as CS:GO. The filter drops the CS2-only
+  `keychains`, `highlights`, and `sticker_slabs` categories. It leaves `graffiti`
+  unfiltered because there is no comparable id namespace. Run
+  `npm run filter-schema` to reapply the filter. It is idempotent and creates one
+  `.pre-csgo.bak`.
+- The CS2 catalogue is the upstream data as-is (trimmed to name/rarity/image),
+  including `keychains`, `highlights`, and `sticker_slabs`. CS2 case membership
+  comes from the ByMykel `crates.json` and `collections.json` endpoints, trimmed
+  by `fetch-schema` into `data/cs2/upstream/` and matched by skin name + paint in
+  `build-cases`. CS2 packs `items_game.txt` into `pak01` VPKs, so the CS:GO
+  `items_game.txt` path is not usable there.
+
+## Domain facts (verified against the cache and GC data)
+
 - The attribute ids are 6 for paint, 7 for seed, 8 for wear, 80 for stattrak,
   111 for name tags, 166 for music, 113 through 136 for stickers, and 137 through
   140 and 223 for tournament attributes. See `buildGiveCommand`.
@@ -123,6 +159,9 @@ a zero-dependency Node HTTP backend in `server/` and a React single-page app in
   id. Category ids collide, so `web/src/lib/inventory-catalog.ts` resolves skins
   and music first, then a fixed category order, then exact `?q=`. Don't reduce
   this to a def lookup.
+- Resolution takes the Gallery's explicit game id. Its caches are keyed by game,
+  its schema requests send `?game=`, and its artwork uses the matching `/imgs`
+  prefix, so a CS2 item can never resolve against the CS:GO cache.
 - The editor renders unresolved defs as `Item def N` and missing art as the
   placeholder. Resolution must never block the editor.
 

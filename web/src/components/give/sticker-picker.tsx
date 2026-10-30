@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Loader2, Search, X } from 'lucide-react'
 import { api } from '../../lib/api'
 import type { CategoryItem } from '../../lib/catalog'
+import { categoryImage, getImageGame } from '../../lib/catalog'
 import { Input } from '../ui/input'
 import { SafeImage } from '../common/safe-image'
 
@@ -40,7 +41,7 @@ export function StickerPicker({ slot, value, onPick, onClear, onClose }: Sticker
     setError('')
     const timer = window.setTimeout(async () => {
       try {
-        const response = await api(`/api/schema/category/stickers?limit=${LIMIT}&q=${encodeURIComponent(needle)}`)
+        const response = await api(`/api/schema/category/stickers?limit=${LIMIT}&q=${encodeURIComponent(needle)}&game=${getImageGame()}`)
         if (cancelled) return
         if (response.error) throw new Error(String(response.error))
         setItems(Array.isArray(response.items) ? response.items : [])
@@ -91,7 +92,7 @@ export function StickerPicker({ slot, value, onPick, onClear, onClose }: Sticker
             onClick={() => onPick(String(item.def_index))}
           >
             <SafeImage
-              src={`/imgs/stickers/${item.def_index}.png`}
+              src={categoryImage('stickers', item.def_index, getImageGame())}
               alt={item.name}
               fallbackClassName="sticker-fallback"
               fallback={String(item.def_index)}

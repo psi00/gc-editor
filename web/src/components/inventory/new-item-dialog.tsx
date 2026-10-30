@@ -78,7 +78,7 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
     setSkinsLoading(true)
     setSkinsError('')
     setSkinsWeaponId(null)
-    api(`/api/schema/skins/${activeWeaponId}`)
+    api(`/api/schema/skins/${activeWeaponId}?game=${schema.game}`)
       .then((response) => {
         if (cancelled) return
         if (response.error) throw new Error(String(response.error))
@@ -94,7 +94,7 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
       })
       .finally(() => { if (!cancelled) setSkinsLoading(false) })
     return () => { cancelled = true }
-  }, [open, skinKind, activeWeaponId])
+  }, [open, skinKind, activeWeaponId, schema.game])
 
   useEffect(() => {
     if (!open || !category) return undefined
@@ -104,7 +104,7 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
     setCatItemsCategory(null)
     const timer = window.setTimeout(async () => {
       try {
-        const response = await api(`/api/schema/category/${category}?limit=${CATEGORY_LIMIT}&q=${encodeURIComponent(query)}`)
+        const response = await api(`/api/schema/category/${category}?limit=${CATEGORY_LIMIT}&q=${encodeURIComponent(query)}&game=${schema.game}`)
         if (cancelled) return
         if (response.error) throw new Error(String(response.error))
         setCatItems(Array.isArray(response.items) ? response.items : [])
@@ -120,7 +120,7 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
       }
     }, query ? 300 : 0)
     return () => { cancelled = true; window.clearTimeout(timer) }
-  }, [open, category, query])
+  }, [open, category, query, schema.game])
 
   useEffect(() => { setVisible(PAGE_STEP) }, [kind, weaponId, knifeId, gloveId, query, rarity, agentTeam])
   useEffect(() => { setRarity(''); setQuery('') }, [kind])
@@ -168,7 +168,7 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
       return filteredSkins.slice(0, visible).map((skin) => ({
         id: String(skin.paint),
         name: skin.name,
-        image: skinImage(activeWeaponId, skin.paint),
+        image: skinImage(activeWeaponId, skin.paint, schema.game),
         accent: skin.rarity?.color,
         meta: skinSource(skin),
         fallback: String(skin.paint),
@@ -177,7 +177,7 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
     return filteredCategory.slice(0, visible).map((item) => ({
       id: item.def_index,
       name: item.name,
-      image: categoryImage(category ?? '', item.def_index),
+      image: categoryImage(category ?? '', item.def_index, schema.game),
       accent: item.rarity?.color,
       fallback: item.def_index,
     }))
@@ -348,6 +348,7 @@ function CatalogOverview({ schema, onPick }: { schema: SchemaState; onPick: (kin
     { id: 'agents', label: 'Agents', count: schema.counts.agents },
     { id: 'cases', label: 'Cases', count: schema.counts.crates },
     { id: 'keys', label: 'Keys', count: schema.counts.keys },
+    { id: 'keychains', label: 'Keychains', count: schema.counts.keychains },
     { id: 'music', label: 'Music', count: schema.counts.music_kits },
   ]
   return (

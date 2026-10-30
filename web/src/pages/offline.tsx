@@ -16,7 +16,7 @@ import { InventoryItemDialog } from '../components/inventory/inv-item-dialog'
 import { NewItemDialog } from '../components/inventory/new-item-dialog'
 import { itemKey, itemNameTag, resolveInventory, type ResolvedInventory } from '../lib/inventory-catalog'
 import { buildInventoryItems } from '../lib/inv-build'
-import { BROWSE_TABS, isKnifeDef, skinSource, type Kind, type Quality } from '../lib/catalog'
+import { BROWSE_TABS, isKnifeDef, skinSource, type GameId, type Kind, type Quality } from '../lib/catalog'
 import { cn } from '../lib/utils'
 import { CategoryBar } from '../components/shell/category-bar'
 import { FilterSidebar, MobileFilters, type FilterState } from '../components/shell/sidebar'
@@ -78,15 +78,18 @@ function galleryKindOf(item: InvItem, resolved?: ResolvedInventory): GalleryKind
   if (resolved.category === 'agents') return 'agents'
   if (resolved.category === 'crates') return 'cases'
   if (resolved.category === 'keys') return 'keys'
+  if (resolved.category === 'keychains') return 'keychains'
   return 'all'
 }
 
-export function OfflinePage({ settings, schema, onDirtyChange }: {
+export function OfflinePage({ game, settings, schema, onDirtyChange }: {
+  game: GameId
   settings: SettingsInfo | null
   schema: SchemaState
   onDirtyChange?: (dirty: boolean) => void
 }) {
   const report = useReport()
+  const gameSettings = settings?.games?.[game]
 
   const [path, setPath] = useState('')
   const [items, setItems] = useState<InvItem[]>([])
@@ -121,7 +124,9 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     setLoading(true)
     setError('')
     try {
-      const response: InvResponse = await api(`/api/inventory${target.trim() ? `?path=${encodeURIComponent(target.trim())}` : ''}`)
+      const params = [`game=${game}`]
+      if (target.trim()) params.push(`path=${encodeURIComponent(target.trim())}`)
+      const response: InvResponse = await api(`/api/inventory?${params.join('&')}`)
       if (response.error) throw new Error(String(response.error))
       setPath(response.path || '')
       setItems(Array.isArray(response.items) ? response.items.map(normalizeItem) : [])
@@ -144,7 +149,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     } finally {
       setLoading(false)
     }
-  }, [report])
+  }, [report, game])
 
   useEffect(() => { void load('') }, [load])
 
@@ -153,8 +158,10 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     setBackupsLoading(true)
     setBackupsError('')
     try {
-      const target = path.trim() || settings?.inventoryTxt || ''
-      const response = await api(`/api/inventory/backups${target ? `?path=${encodeURIComponent(target)}` : ''}`)
+      const target = path.trim() || gameSettings?.inventoryTxt || ''
+      const params = [`game=${game}`]
+      if (target) params.push(`path=${encodeURIComponent(target)}`)
+      const response = await api(`/api/inventory/backups?${params.join('&')}`)
       if (response.error) throw new Error(String(response.error))
       setBackups(Array.isArray(response.backups) ? response.backups : [])
     } catch (cause) {
@@ -163,7 +170,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     } finally {
       setBackupsLoading(false)
     }
-  }, [path, settings?.inventoryTxt])
+  }, [path, gameSettings?.inventoryTxt, game])
 
   // Stage a backup in the editor. Nothing is written until Save + backup, which
   // first copies the current inventory.txt aside.
@@ -173,7 +180,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     setLoading(true)
     setError('')
     try {
-      const response: InvResponse = await api(`/api/inventory?path=${encodeURIComponent(backup.file)}`)
+      const response: InvResponse = await api(`/api/inventory?path=${encodeURIComponent(backup.file)}&game=${game}`)
       if (response.error) throw new Error(String(response.error))
       setItems(Array.isArray(response.items) ? response.items.map(normalizeItem) : [])
       setDefaultEquips(response.default_equips || {})
@@ -194,7 +201,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     } finally {
       setLoading(false)
     }
-  }, [report])
+  }, [report, game])
 
   useEffect(() => { onDirtyChange?.(dirty) }, [dirty, onDirtyChange])
 
@@ -220,12 +227,12 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     }
     let cancelled = false
     setResolving(true)
-    void resolveInventory(items, schema.weapons)
+    void resolveInventory(items, schema.weapons, game)
       .then((map) => { if (!cancelled) setCatalog(map) })
       .finally(() => { if (!cancelled) setResolving(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature, schema.weapons])
+  }, [signature, schema.weapons, schema.game, game])
 
   const save = useCallback(async () => {
     setSaving(true)
@@ -233,7 +240,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     try {
       const response = await api('/api/inventory/save', {
         method: 'POST',
-        body: JSON.stringify({ path, items, default_equips: defaultEquips }),
+        body: JSON.stringify({ game, path, items, default_equips: defaultEquips }),
       })
       if (!response.ok) throw new Error(String(response.error || 'save failed'))
       report(
@@ -249,7 +256,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
     } finally {
       setSaving(false)
     }
-  }, [items, defaultEquips, path, report, load])
+  }, [items, defaultEquips, path, report, load, game])
 
   const updateAttribute = (id: number, key: string, value: string | null) => {
     setItems((current) => current.map((item) => {
@@ -406,10 +413,10 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
 
   const pathParts = useMemo(() => {
     const value = path.trim()
-    if (!value) return { file: settings?.inventoryTxt ?? 'auto-detected path', dir: '' }
+    if (!value) return { file: gameSettings?.inventoryTxt ?? 'auto-detected path', dir: '' }
     const cut = Math.max(value.lastIndexOf('\\'), value.lastIndexOf('/'))
     return cut < 0 ? { file: value, dir: '' } : { file: value.slice(cut + 1), dir: value.slice(0, cut) }
-  }, [path, settings?.inventoryTxt])
+  }, [path, gameSettings?.inventoryTxt])
 
   const selected = items.find((item) => item.id === selectedId) ?? null
   const selectedResolved = selected ? catalog.get(itemKey(selected)) : undefined
@@ -448,7 +455,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-2 text-xs">
               <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate font-mono text-foreground" title={path || settings?.inventoryTxt || ''}>{pathParts.file}</span>
+              <span className="truncate font-mono text-foreground" title={path || gameSettings?.inventoryTxt || ''}>{pathParts.file}</span>
               {pathParts.dir && <span className="truncate text-[11px] text-muted-foreground" title={pathParts.dir}>{pathParts.dir}</span>}
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground">
@@ -484,7 +491,7 @@ export function OfflinePage({ settings, schema, onDirtyChange }: {
             <Input
               value={path}
               onChange={(event) => setPath(event.target.value)}
-              placeholder={settings?.inventoryTxt ?? 'path to inventory.txt (blank = auto-detect)'}
+              placeholder={gameSettings?.inventoryTxt ?? 'path to inventory.txt (blank = auto-detect)'}
               aria-label="Path to inventory.txt"
               className="h-9 font-mono text-xs"
             />

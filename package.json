@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "local/offline inventory editor for gt-610 csgo_gc - live rcon + inventory.txt",
+  "description": "local/offline CS:GO + CS2 inventory editor for gt-610 csgo_gc - live rcon + inventory.txt",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",

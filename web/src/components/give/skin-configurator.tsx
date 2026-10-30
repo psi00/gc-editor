@@ -5,7 +5,7 @@ import { useReport } from '../../lib/report'
 import { rconHint } from '../../lib/rcon-hints'
 import type { GiveItem, GiveResponse } from '../../lib/app-types'
 import {
-  isGloveDef, rarityLabel, round4, skinImage, wearBand, wearBandId, WEAR_PRESETS,
+  categoryImage, isGloveDef, rarityLabel, round4, skinImage, wearBand, wearBandId, WEAR_PRESETS,
 } from '../../lib/catalog'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
@@ -255,7 +255,7 @@ export function SkinConfigurator({ selection, open, onOpenChange, onAdd }: {
                         title={`Sticker slot ${index + 1}`}
                       >
                         {id
-                          ? <SafeImage src={`/imgs/stickers/${id}.png`} alt={`Sticker ${id}`} fallback={id} />
+                          ? <SafeImage src={categoryImage('stickers', id)} alt={`Sticker ${id}`} fallback={id} />
                           : <span className="slot-index">{index + 1}</span>}
                       </button>
                     ))}

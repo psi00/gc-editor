@@ -1,11 +1,18 @@
 import { useEffect, useRef } from 'react'
 import { Activity, FolderOpen, Images, Settings } from 'lucide-react'
+import type { GameId } from '../../lib/catalog'
+import { GAME_LABELS } from '../../lib/catalog'
 import type { RconStatus } from '../../lib/app-types'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import { cn } from '../../lib/utils'
 
 export type Mode = 'live' | 'offline'
 export type Page = 'mode' | 'activity' | 'settings'
+
+const GAME_TABS: { id: GameId; label: string }[] = [
+  { id: 'csgo', label: GAME_LABELS.csgo },
+  { id: 'cs2', label: GAME_LABELS.cs2 },
+]
 
 const MODES: { id: Mode; label: string; icon: typeof Images }[] = [
   { id: 'live', label: 'Live', icon: Images },
@@ -57,13 +64,15 @@ function NavTabs({ mode, page, onMode, onPage }: {
   )
 }
 
-export function Header({ mode, page, onMode, onPage, status, onOpenSettings }: {
+export function Header({ mode, page, onMode, onPage, status, onOpenSettings, game, onGame }: {
   mode: Mode
   page: Page
   onMode: (mode: Mode) => void
   onPage: (page: Exclude<Page, 'mode'>) => void
   status: RconStatus
   onOpenSettings: () => void
+  game: GameId
+  onGame: (game: GameId) => void
 }) {
   const health = HEALTH[status.health]
   const headerRef = useRef<HTMLElement>(null)
@@ -87,6 +96,24 @@ export function Header({ mode, page, onMode, onPage, status, onOpenSettings }: {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          {mode === 'offline' && page === 'mode' && (
+            <>
+              <nav className="flex items-center gap-1" aria-label="Gallery catalogue">
+                {GAME_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => onGame(tab.id)}
+                    aria-pressed={game === tab.id}
+                    aria-label={`Use the ${tab.label} catalogue`}
+                    className={cn('nav-link', game === tab.id && 'active')}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+              <span className="mx-1 h-4 w-px shrink-0 bg-white/10" aria-hidden />
+            </>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <button

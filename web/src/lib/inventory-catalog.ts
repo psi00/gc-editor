@@ -10,7 +10,7 @@
 // always resolved first.
 
 import { api } from './api'
-import { categoryImage, isGloveDef, skinImage, type Rarity, type Weapon } from './catalog'
+import { categoryImage, isGloveDef, skinImage, type GameId, type Rarity, type Weapon } from './catalog'
 import type { InvItem } from './app-types'
 
 export type ResolvedInventory = {
@@ -31,15 +31,22 @@ type SkinEntry = { name: string; rarity?: Rarity; case?: string | null; collecti
 type CategoryEntry = { name: string; rarity?: Rarity; cat: string }
 type CategoryIndex = { byDef: Map<string, CategoryEntry>; music: Map<string, CategoryEntry> }
 
-const CATEGORY_ORDER = ['agents', 'collectibles', 'tools', 'crates', 'keys', 'patches', 'stickers', 'graffiti']
+const CATEGORY_ORDER = ['agents', 'collectibles', 'tools', 'crates', 'keys', 'patches', 'stickers', 'graffiti', 'keychains']
 
-const skinCache = new Map<number, Promise<Map<string, SkinEntry>>>()
-let categoryCache: Promise<CategoryIndex> | null = null
+const skinCache = new Map<string, Promise<Map<string, SkinEntry>>>()
+const categoryCache = new Map<GameId, Promise<CategoryIndex>>()
 
-function loadSkins(defIndex: number) {
-  let pending = skinCache.get(defIndex)
+/** Drop per-game lookups when the active catalogue changes. */
+export function resetInventoryCatalog() {
+  skinCache.clear()
+  categoryCache.clear()
+}
+
+function loadSkins(game: GameId, defIndex: number) {
+  const cacheKey = `${game}:${defIndex}`
+  let pending = skinCache.get(cacheKey)
   if (!pending) {
-    pending = api(`/api/schema/skins/${defIndex}`)
+    pending = api(`/api/schema/skins/${defIndex}?game=${game}`)
       .then((response) => {
         const map = new Map<string, SkinEntry>()
         for (const skin of Array.isArray(response.skins) ? response.skins : []) {
@@ -48,17 +55,18 @@ function loadSkins(defIndex: number) {
         return map
       })
       .catch(() => new Map<string, SkinEntry>())
-    skinCache.set(defIndex, pending)
+    skinCache.set(cacheKey, pending)
   }
   return pending
 }
 
-function loadCategories(): Promise<CategoryIndex> {
-  if (!categoryCache) {
+function loadCategories(game: GameId): Promise<CategoryIndex> {
+  let pending = categoryCache.get(game)
+  if (!pending) {
     const cats = [...CATEGORY_ORDER, 'music_kits']
-    categoryCache = Promise.all(cats.map(async (cat) => {
+    pending = Promise.all(cats.map(async (cat) => {
       try {
-        const response = await api(`/api/schema/category/${cat}?limit=500`)
+        const response = await api(`/api/schema/category/${cat}?limit=500&game=${game}`)
         return { cat, items: Array.isArray(response.items) ? response.items : [] }
       } catch {
         return { cat, items: [] as { def_index: string; name: string; rarity?: Rarity }[] }
@@ -75,15 +83,16 @@ function loadCategories(): Promise<CategoryIndex> {
       }
       return { byDef, music }
     })
+    categoryCache.set(game, pending)
   }
-  return categoryCache
+  return pending
 }
 
 /** Exact lookup for ids the capped bulk category fetch did not include. */
-async function searchExact(defIndex: number): Promise<CategoryEntry | null> {
+async function searchExact(game: GameId, defIndex: number): Promise<CategoryEntry | null> {
   const hits = await Promise.all(CATEGORY_ORDER.map(async (cat) => {
     try {
-      const response = await api(`/api/schema/category/${cat}?limit=20&q=${defIndex}`)
+      const response = await api(`/api/schema/category/${cat}?limit=20&game=${game}&q=${defIndex}`)
       const item = (Array.isArray(response.items) ? response.items : [])
         .find((entry: { def_index: string }) => String(entry.def_index) === String(defIndex))
       return item ? { name: String(item.name), rarity: item.rarity, cat } : null
@@ -117,7 +126,7 @@ export function itemNameTag(item: InvItem) {
   return item.attributes?.['111']?.trim() ?? ''
 }
 
-export async function resolveInventory(items: InvItem[], weapons: Weapon[]) {
+export async function resolveInventory(items: InvItem[], weapons: Weapon[], game: GameId) {
   const weaponDefs = new Set(weapons.map((weapon) => weapon.def_index))
   const needsSkins = new Set<number>()
   for (const item of items) {
@@ -127,7 +136,7 @@ export async function resolveInventory(items: InvItem[], weapons: Weapon[]) {
   }
 
   const defs = [...needsSkins]
-  const [categories, ...skinMaps] = await Promise.all([loadCategories(), ...defs.map(loadSkins)])
+  const [categories, ...skinMaps] = await Promise.all([loadCategories(game), ...defs.map((def) => loadSkins(game, def))])
   const skinsByDef = new Map<number, Map<string, SkinEntry>>()
   defs.forEach((def, index) => skinsByDef.set(def, skinMaps[index]))
 
@@ -147,7 +156,7 @@ export async function resolveInventory(items: InvItem[], weapons: Weapon[]) {
       if (music) {
         entry = {
           name: music.name,
-          image: `/imgs/music_kits/${musicId}.png`,
+          image: categoryImage('music_kits', musicId, game),
           rarity: music.rarity,
           category: 'music_kits',
           isSkin: false,
@@ -164,7 +173,7 @@ export async function resolveInventory(items: InvItem[], weapons: Weapon[]) {
       if (skin) {
         entry = {
           name: skin.name,
-          image: skinImage(item.def_index, paint ?? 0),
+          image: skinImage(item.def_index, paint ?? 0, game),
           rarity: skin.rarity,
           paint: paint ?? 0,
           case: skin.case ?? null,
@@ -182,7 +191,7 @@ export async function resolveInventory(items: InvItem[], weapons: Weapon[]) {
       if (category) {
         entry = {
           name: category.name,
-          image: categoryImage(category.cat, item.def_index),
+          image: categoryImage(category.cat, item.def_index, game),
           rarity: category.rarity,
           category: category.cat,
           isSkin: false,
@@ -200,7 +209,7 @@ export async function resolveInventory(items: InvItem[], weapons: Weapon[]) {
   if (unresolved.length > 0) {
     const missingDefs = [...new Set(unresolved.map((item) => item.def_index))]
     const found = new Map<number, CategoryEntry | null>()
-    await Promise.all(missingDefs.map(async (def) => { found.set(def, await searchExact(def)) }))
+    await Promise.all(missingDefs.map(async (def) => { found.set(def, await searchExact(game, def)) }))
     for (const item of unresolved) {
       const key = itemKey(item)
       if (resolved.has(key)) continue
@@ -208,7 +217,7 @@ export async function resolveInventory(items: InvItem[], weapons: Weapon[]) {
       if (category) {
         resolved.set(key, {
           name: category.name,
-          image: categoryImage(category.cat, item.def_index),
+          image: categoryImage(category.cat, item.def_index, game),
           rarity: category.rarity,
           category: category.cat,
           isSkin: false,

@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { Sticker, Trash2, X } from 'lucide-react'
 import type { InvItem } from '../../lib/app-types'
 import { itemPaint, type ResolvedInventory } from '../../lib/inventory-catalog'
-import { formatWear, isGloveDef, rarityLabel, round4, wearBand, wearBandId, WEAR_PRESETS } from '../../lib/catalog'
+import { formatWear, categoryImage, isGloveDef, rarityLabel, round4, wearBand, wearBandId, WEAR_PRESETS } from '../../lib/catalog'
 import { Button } from '../ui/button'
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
 import { Input } from '../ui/input'
@@ -242,7 +242,7 @@ export function InventoryItemDialog({
                         title={`Sticker slot ${index + 1}`}
                       >
                         {id
-                          ? <SafeImage src={`/imgs/stickers/${id}.png`} alt={`Sticker ${id}`} fallback={id} />
+                          ? <SafeImage src={categoryImage('stickers', id)} alt={`Sticker ${id}`} fallback={id} />
                           : <span className="slot-index">{index + 1}</span>}
                       </button>
                     ))}

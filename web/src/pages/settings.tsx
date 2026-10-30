@@ -6,6 +6,8 @@ import { api, store } from '../lib/api'
 import { useReport } from '../lib/report'
 import { rconHint } from '../lib/rcon-hints'
 import type { RconStatus, SettingsInfo } from '../lib/app-types'
+import type { GameId } from '../lib/catalog'
+import { GAME_LABELS } from '../lib/catalog'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { cn } from '../lib/utils'
@@ -24,9 +26,9 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
   const [port, setPort] = useState(store.port)
   const [password, setPassword] = useState(store.password)
   const [showPassword, setShowPassword] = useState(false)
-  const [gameDir, setGameDir] = useState('')
+  const [dirs, setDirs] = useState<Record<GameId, string>>({ csgo: '', cs2: '' })
   const [testing, setTesting] = useState<'ping' | 'status' | null>(null)
-  const [savingDir, setSavingDir] = useState(false)
+  const [savingGame, setSavingGame] = useState<GameId | null>(null)
   const [reply, setReply] = useState<Reply | null>(null)
   const [error, setError] = useState('')
   const [css, setCss] = useState('')
@@ -65,24 +67,27 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
     }
   }
 
-  const saveGameDir = async () => {
-    setSavingDir(true)
+  const saveGameDir = async (game: GameId) => {
+    setSavingGame(game)
     setError('')
     try {
-      const response = await api('/api/settings', { method: 'POST', body: JSON.stringify({ gameDir }) })
+      const response = await api('/api/settings', {
+        method: 'POST',
+        body: JSON.stringify({ gameDirs: { [game]: dirs[game] } }),
+      })
       if (response.error) throw new Error(String(response.error))
       await onReloadSettings()
       report(
-        { kind: 'settings', label: 'game directory override saved', ok: true, detail: response.gameDir ?? gameDir },
-        { title: 'Game directory updated', body: response.gameDir ?? gameDir },
+        { kind: 'settings', label: `${GAME_LABELS[game]} directory override saved`, ok: true, detail: response.gameDirs?.[game] ?? dirs[game] },
+        { title: `${GAME_LABELS[game]} directory updated`, body: response.gameDirs?.[game] ?? dirs[game] },
         'ok',
       )
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
       setError(message)
-      report({ kind: 'error', label: 'save game directory', raw: message, ok: false }, { title: 'Could not save game directory', body: message }, 'err')
+      report({ kind: 'error', label: `save ${game} game directory`, raw: message, ok: false }, { title: 'Could not save game directory', body: message }, 'err')
     } finally {
-      setSavingDir(false)
+      setSavingGame(null)
     }
   }
 
@@ -132,13 +137,16 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
   }
 
   const paths: { label: string; value: string | null; exists?: boolean | null }[] = settings ? [
-    { label: 'game dir', value: settings.gameDir },
+    { label: 'gallery catalog', value: GAME_LABELS[settings.game] },
+    { label: 'game dir (CS:GO)', value: settings.games?.csgo?.gameDir ?? settings.gameDirs?.csgo ?? null },
+    { label: 'game dir (CS2)', value: settings.games?.cs2?.gameDir ?? settings.gameDirs?.cs2 ?? null },
     { label: 'inventory.txt', value: settings.inventoryTxt, exists: settings.inventoryExists },
     { label: 'items_game.txt', value: settings.itemsGameTxt, exists: settings.itemsGameExists },
     { label: 'config.txt', value: settings.configTxt },
     { label: 'schema json', value: settings.schemaCache, exists: settings.schemaCached },
+    { label: 'cases json', value: settings.casesCache, exists: settings.casesCached },
     { label: 'schema meta', value: typeof settings.schemaMeta === 'string' ? settings.schemaMeta : null },
-    { label: 'images dir', value: settings.imgsDir },
+    { label: 'images dir', value: settings.imgsGameDir ?? settings.imgsDir },
     { label: 'data dir', value: settings.dataDir },
     { label: 'user cache', value: settings.userCacheDir },
     { label: 'custom.css', value: settings.customCss, exists: settings.customCssExists },

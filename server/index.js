@@ -4,20 +4,53 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { URL } from 'node:url'
-import { resolvePaths, ensureDirs } from './paths.js'
+import { resolveAllPaths, ensureDirs, detectActiveGame } from './paths.js'
+import { GAMES, GAME_LABELS, normalizeGame } from './games.js'
 import { parseInventory, serializeInventory, validateInventory, writeInventoryAtomic, listInventoryBackups } from './inventory.js'
 import { readCustomCss, writeCustomCss, ensureCustomCss, CUSTOM_CSS_LIMIT } from './custom-css.js'
 import { rconCommand, buildGiveCommand } from './rcon.js'
-import { loadSchema, searchSkins, skinsForWeapon, listWeapons, listCategory, searchAll, categoryCounts, getSchema } from './schema.js'
+import { loadSchema, setGame, getGame, searchSkins, skinsForWeapon, listWeapons, listCategory, searchAll, categoryCounts, getSchema } from './schema.js'
 
 const PORT = Number(process.env.PORT || 5174)
 const HOST = '127.0.0.1'
 
-let gameDirHint = process.env.CSGO_LEGACY_DIR || null
-let paths = resolvePaths(gameDirHint)
-ensureDirs(paths)
+const gameHints = {
+  csgo: process.env.CSGO_LEGACY_DIR || null,
+  cs2: process.env.CS2_DIR || null,
+}
+let activeGame = detectActiveGame(gameHints)
+let pathsByGame = resolveAllPaths(gameHints)
+let paths = pathsByGame[activeGame]
+
+function reloadGames() {
+  pathsByGame = resolveAllPaths(gameHints)
+  for (const game of GAMES) {
+    ensureDirs(pathsByGame[game])
+    loadSchema(game, pathsByGame[game].schemaCache)
+  }
+  paths = pathsByGame[activeGame]
+  setGame(activeGame)
+}
+
+function settingsFor(game) {
+  const entry = pathsByGame[game]
+  return {
+    ...entry,
+    inventoryExists: entry.inventoryTxt ? fs.existsSync(entry.inventoryTxt) : false,
+    itemsGameExists: entry.itemsGameTxt ? fs.existsSync(entry.itemsGameTxt) : false,
+    schemaCached: fs.existsSync(entry.schemaCache),
+    casesCached: fs.existsSync(entry.casesCache),
+    customCssExists: fs.existsSync(entry.customCss),
+  }
+}
+
+/** Game requested by a query param, falling back to the server default. */
+function gameFrom(u) {
+  return normalizeGame(u.searchParams.get('game') || getGame())
+}
+
+reloadGames()
 ensureCustomCss(paths.customCss)
-loadSchema(paths.schemaCache)
 
 function send(res, code, body, type = 'application/json') {
   const data = typeof body === 'string' ? body : JSON.stringify(body)
@@ -50,26 +83,39 @@ const server = http.createServer(async (req, res) => {
 
   // --- settings / paths ---
   if (p === '/api/settings' && req.method === 'GET') {
-    paths = resolvePaths(gameDirHint)
-    ensureDirs(paths)
-    loadSchema(paths.schemaCache)
-    const out = {
-      ...paths,
-      inventoryExists: paths.inventoryTxt ? fs.existsSync(paths.inventoryTxt) : false,
-      itemsGameExists: paths.itemsGameTxt ? fs.existsSync(paths.itemsGameTxt) : false,
-      schemaCached: fs.existsSync(paths.schemaCache),
-      customCssExists: fs.existsSync(paths.customCss),
-    }
-    send(res, 200, out)
+    reloadGames()
+    const active = settingsFor(activeGame)
+    const games = Object.fromEntries(GAMES.map((game) => [game, settingsFor(game)]))
+    send(res, 200, {
+      ...active,
+      game: activeGame,
+      gameLabels: GAME_LABELS,
+      games,
+      gameDirs: Object.fromEntries(GAMES.map((game) => [game, pathsByGame[game].gameDir])),
+      inventoryExists: active.inventoryExists,
+      itemsGameExists: active.itemsGameExists,
+      schemaCached: active.schemaCached,
+      customCssExists: active.customCssExists,
+    })
     return
   }
   if (p === '/api/settings' && req.method === 'POST') {
     const body = await readBody(req)
-    if (body.gameDir) gameDirHint = body.gameDir
-    paths = resolvePaths(gameDirHint)
-    ensureDirs(paths)
-    loadSchema(paths.schemaCache)
-    send(res, 200, { ok: true, gameDir: paths.gameDir })
+    if (body.gameDirs && typeof body.gameDirs === 'object') {
+      for (const game of GAMES) {
+        if (typeof body.gameDirs[game] === 'string') gameHints[game] = body.gameDirs[game].trim() || null
+      }
+    }
+    if (body.game) activeGame = normalizeGame(body.game)
+    if (typeof body.gameDir === 'string') gameHints[activeGame] = body.gameDir.trim() || null
+    activeGame = normalizeGame(activeGame)
+    reloadGames()
+    send(res, 200, {
+      ok: true,
+      game: activeGame,
+      gameDir: paths.gameDir,
+      gameDirs: Object.fromEntries(GAMES.map((game) => [game, pathsByGame[game].gameDir])),
+    })
     return
   }
 
@@ -149,32 +195,35 @@ const server = http.createServer(async (req, res) => {
 
   // --- inventory file ---
   if (p === '/api/inventory' && req.method === 'GET') {
-    const file = u.searchParams.get('path') || paths.inventoryTxt
-    if (!file || !fs.existsSync(file)) { send(res, 404, { error: 'inventory.txt not found', path: file }); return }
+    const game = gameFrom(u)
+    const file = u.searchParams.get('path') || pathsByGame[game].inventoryTxt
+    if (!file || !fs.existsSync(file)) { send(res, 404, { error: 'inventory.txt not found', path: file, game }); return }
     try {
       const text = fs.readFileSync(file, 'utf8')
       const inv = parseInventory(text)
       const warnings = validateInventory(inv)
-      send(res, 200, { path: file, items: inv.items, default_equips: inv.default_equips, warnings, count: inv.items.length })
+      send(res, 200, { game, path: file, items: inv.items, default_equips: inv.default_equips, warnings, count: inv.items.length })
     } catch (e) {
-      send(res, 500, { error: String(e.message) })
+      send(res, 500, { error: String(e.message), game })
     }
     return
   }
   if (p === '/api/inventory/backups' && req.method === 'GET') {
-    const file = u.searchParams.get('path') || paths.inventoryTxt
-    if (!file) { send(res, 200, { path: file, backups: [] }); return }
+    const game = gameFrom(u)
+    const file = u.searchParams.get('path') || pathsByGame[game].inventoryTxt
+    if (!file) { send(res, 200, { game, path: file, backups: [] }); return }
     try {
-      send(res, 200, { path: file, backups: listInventoryBackups(file) })
+      send(res, 200, { game, path: file, backups: listInventoryBackups(file) })
     } catch (e) {
-      send(res, 500, { path: file, backups: [], error: String(e.message) })
+      send(res, 500, { game, path: file, backups: [], error: String(e.message) })
     }
     return
   }
   if (p === '/api/inventory/save' && req.method === 'POST') {
     const body = await readBody(req)
-    const file = body.path || paths.inventoryTxt
-    if (!file) { send(res, 400, { error: 'no inventory path' }); return }
+    const game = normalizeGame(body.game || getGame())
+    const file = body.path || pathsByGame[game].inventoryTxt
+    if (!file) { send(res, 400, { error: 'no inventory path', game }); return }
     try {
       // accept either full items array or raw text
       let text
@@ -187,40 +236,46 @@ const server = http.createServer(async (req, res) => {
         text = serializeInventory({ items: body.items || [], default_equips: body.default_equips || {} }, existing)
       }
       writeInventoryAtomic(file, text)
-      send(res, 200, { ok: true, path: file })
+      send(res, 200, { ok: true, game, path: file })
     } catch (e) {
-      send(res, 500, { ok: false, error: String(e.message) })
+      send(res, 500, { ok: false, game, error: String(e.message) })
     }
     return
   }
 
   // --- schema search ---
   if (p === '/api/schema/search' && req.method === 'GET') {
-    send(res, 200, { results: searchSkins(u.searchParams.get('q') || '', Number(u.searchParams.get('limit') || 50)) })
+    const game = gameFrom(u)
+    send(res, 200, { game, results: searchSkins(game, u.searchParams.get('q') || '', Number(u.searchParams.get('limit') || 50)) })
     return
   }
   if (p === '/api/schema/weapons' && req.method === 'GET') {
-    send(res, 200, { weapons: listWeapons() })
+    const game = gameFrom(u)
+    send(res, 200, { game, weapons: listWeapons(game) })
     return
   }
   if (p.startsWith('/api/schema/skins/') && req.method === 'GET') {
+    const game = gameFrom(u)
     const weaponId = Number(p.split('/').pop())
-    send(res, 200, { weaponId, skins: skinsForWeapon(weaponId) })
+    send(res, 200, { game, weaponId, skins: skinsForWeapon(game, weaponId) })
     return
   }
   if (p === '/api/schema/counts' && req.method === 'GET') {
-    send(res, 200, { counts: categoryCounts(), cached: !!getSchema() })
+    const game = gameFrom(u)
+    send(res, 200, { game, counts: categoryCounts(game), cached: !!getSchema(game) })
     return
   }
   if (p.startsWith('/api/schema/category/') && req.method === 'GET') {
+    const game = gameFrom(u)
     const cat = p.split('/').pop()
     const q = u.searchParams.get('q') || ''
     const limit = Number(u.searchParams.get('limit') || 500)
-    send(res, 200, { category: cat, items: listCategory(cat, limit, q) })
+    send(res, 200, { game, category: cat, items: listCategory(game, cat, limit, q) })
     return
   }
   if (p === '/api/schema/search-all' && req.method === 'GET') {
-    send(res, 200, { results: searchAll(u.searchParams.get('q') || '', Number(u.searchParams.get('limit') || 50)) })
+    const game = gameFrom(u)
+    send(res, 200, { game, results: searchAll(game, u.searchParams.get('q') || '', Number(u.searchParams.get('limit') || 50)) })
     return
   }
 
@@ -246,5 +301,9 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`gc-editor server on http://${HOST}:${PORT}`)
-  console.log(`gameDir: ${paths.gameDir ?? '(not found - set via POST /api/settings)'} `)
+  console.log(`active game: ${getGame()} (${GAME_LABELS[getGame()]})`)
+  for (const game of GAMES) {
+    const entry = pathsByGame[game]
+    console.log(`  ${game}: ${entry.gameDir ?? '(not found - set via POST /api/settings)'}`)
+  }
 })
