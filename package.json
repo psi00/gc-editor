@@ -1,6 +1,6 @@
 {
   "name": "gc-editor",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "local/offline CS:GO + CS2 inventory editor for gt-610 csgo_gc - live rcon + inventory.txt",
