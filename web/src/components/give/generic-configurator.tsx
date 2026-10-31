@@ -4,8 +4,8 @@ import { api, quoteName, store } from '../../lib/api'
 import { useReport } from '../../lib/report'
 import { rconHint } from '../../lib/rcon-hints'
 import type { GiveItem, GiveResponse } from '../../lib/app-types'
-import type { CategoryItem, Kind } from '../../lib/catalog'
-import { categoryImage, rarityLabel } from '../../lib/catalog'
+import type { CategoryItem, GameId, Kind } from '../../lib/catalog'
+import { GAME_LABELS, categoryImage, rarityLabel } from '../../lib/catalog'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
@@ -30,7 +30,8 @@ function intOrUndefined(text: string) {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined
 }
 
-export function GenericConfigurator({ selection, open, onOpenChange, onAdd }: {
+export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChange, onAdd }: {
+  game?: GameId
   selection: GenericSelection
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -39,6 +40,8 @@ export function GenericConfigurator({ selection, open, onOpenChange, onAdd }: {
 }) {
   const mode = selection.kind === 'music' ? 'music' : 'generic'
   const local = Boolean(onAdd)
+  const profile = store.profile(game)
+  const rconDisabled = !local && !profile.enabled
   const report = useReport()
 
   const [countText, setCountText] = useState('1')
@@ -53,7 +56,7 @@ export function GenericConfigurator({ selection, open, onOpenChange, onAdd }: {
   const countValid = count !== null
   const musicId = intOrUndefined(musicText)
   const musicValid = mode !== 'music' || (musicId !== undefined && musicId > 0)
-  const canSubmit = !submitting && countValid && musicValid
+  const canSubmit = !submitting && !rconDisabled && countValid && musicValid
 
   const defIndex = Number(selection.item.def_index)
   const displayDef = mode === 'music' ? 1314 : defIndex
@@ -90,7 +93,7 @@ export function GenericConfigurator({ selection, open, onOpenChange, onAdd }: {
     try {
       const response: GiveResponse = await api('/api/rcon/give', {
         method: 'POST',
-        body: JSON.stringify({ host: store.host, port: store.port, password: store.password, autosave, item }),
+        body: JSON.stringify({ host: profile.host, port: profile.port, password: profile.password, autosave, item }),
       })
       setResult(response)
       report(
@@ -188,6 +191,12 @@ export function GenericConfigurator({ selection, open, onOpenChange, onAdd }: {
                   <Checkbox checked={autosave} onCheckedChange={(checked) => setAutosave(checked === true)} />
                   Run <span className="font-mono text-[11px] text-foreground/80">save_inventory</span> after adding
                 </label>
+              )}
+
+              {rconDisabled && (
+                <p className="text-[11px] leading-relaxed text-warn-soft">
+                  RCON is disabled for {GAME_LABELS[game]} in Settings. Enable that profile to send items.
+                </p>
               )}
 
               {error && <div className="log-surface err">{error}</div>}

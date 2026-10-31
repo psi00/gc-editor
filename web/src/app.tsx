@@ -38,7 +38,10 @@ function Shell() {
   const [settings, setSettings] = useState<SettingsInfo | null>(null)
   const [galleryGame, setGalleryGame] = useState<GameId>('csgo')
   const [schema, setSchema] = useState<SchemaState>({ status: 'loading', weapons: [], counts: {}, cached: false, game: 'csgo' })
-  const [status, setStatus] = useState<RconStatus>({ health: 'unknown', raw: '', at: null, checking: false })
+  const [statuses, setStatuses] = useState<Record<GameId, RconStatus>>({
+    csgo: { health: 'unknown', raw: '', at: null, checking: false },
+    cs2: { health: 'unknown', raw: '', at: null, checking: false },
+  })
 
   const reloadSettings = useCallback(async () => {
     try {
@@ -88,28 +91,43 @@ function Shell() {
     }
   }, [report])
 
-  const checkStatus = useCallback(async () => {
-    setStatus((current) => ({ ...current, checking: true }))
+  const checkStatus = useCallback(async (target: GameId) => {
+    const profile = store.profile(target)
+    if (!profile.enabled) {
+      setStatuses((current) => ({
+        ...current,
+        [target]: { health: 'off', raw: `RCON disabled for ${target === 'cs2' ? 'CS2' : 'CS:GO'} in Settings.`, at: new Date().toISOString(), checking: false },
+      }))
+      return
+    }
+    setStatuses((current) => ({ ...current, [target]: { ...current[target], checking: true } }))
     try {
       const response = await api('/api/rcon', {
         method: 'POST',
-        body: JSON.stringify({ host: store.host, port: store.port, password: store.password, command: 'status' }),
+        body: JSON.stringify({ host: profile.host, port: profile.port, password: profile.password, command: 'status' }),
       })
       const raw = String(response.raw ?? '')
       const health: RconHealth = /^ok/i.test(raw) ? 'ready' : /auth/i.test(raw) ? 'auth' : 'gc'
-      setStatus({ health, raw, at: new Date().toISOString(), checking: false })
+      setStatuses((current) => ({ ...current, [target]: { health, raw, at: new Date().toISOString(), checking: false } }))
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
-      setStatus({ health: 'gc', raw: `ERR ${message}`, at: new Date().toISOString(), checking: false })
+      setStatuses((current) => ({
+        ...current,
+        [target]: { health: 'gc', raw: `ERR ${message}`, at: new Date().toISOString(), checking: false },
+      }))
     }
   }, [])
 
   useEffect(() => {
     void reloadSettings()
-    // Live is the initial page, and Live is always CS:GO (RCON only exists there)
-    void reloadSchema('csgo')
-    void checkStatus()
-  }, [reloadSettings, reloadSchema, checkStatus])
+  }, [reloadSettings])
+
+  // The game switch drives both the catalogue and the matching RCON profile,
+  // in Live and Gallery alike.
+  useEffect(() => {
+    void reloadSchema(galleryGame)
+    void checkStatus(galleryGame)
+  }, [galleryGame, reloadSchema, checkStatus])
 
   // `/` focuses the active page search field; never steals keys from inputs or dialogs.
   useEffect(() => {
@@ -138,6 +156,7 @@ function Shell() {
   }, [offlineDirty])
 
   const game = galleryGame
+  const status = statuses[game]
 
   const changeGame = (next: GameId) => {
     if (next === game) return
@@ -151,12 +170,11 @@ function Shell() {
           if (!response.game) throw new Error('this server is still running the previous build - restart it and try again')
           setGalleryGame(next)
           resetInventoryCatalog()
-          await reloadSchema(next)
           await reloadSettings()
-          report({ kind: 'settings', label: 'gallery catalogue switched', ok: true, detail: next === 'cs2' ? 'CS2' : 'CS:GO' })
+          report({ kind: 'settings', label: 'game switched', ok: true, detail: next === 'cs2' ? 'CS2' : 'CS:GO' })
         } catch (cause) {
           const message = cause instanceof Error ? cause.message : String(cause)
-          report({ kind: 'error', label: `switch gallery catalogue to ${next}`, raw: message, ok: false }, { title: 'Could not switch catalogue', body: message }, 'err')
+          report({ kind: 'error', label: `switch game to ${next}`, raw: message, ok: false }, { title: 'Could not switch game', body: message }, 'err')
         }
       })()
     })
@@ -168,8 +186,6 @@ function Shell() {
       setMode(next)
       setPage('mode')
       setOfflineDirty(false)
-      // Live reads the CS:GO catalogue; Gallery restores its own choice
-      void reloadSchema(next === 'live' ? 'csgo' : galleryGame)
     })
   }
 
@@ -208,13 +224,14 @@ function Shell() {
           settings={settings}
           onReloadSettings={reloadSettings}
           status={status}
-          onCheckStatus={() => void checkStatus()}
+          onCheckStatus={(target) => void checkStatus(target ?? game)}
         />
       ) : mode === 'live' ? (
         <LivePage
-          key="live"
+          key={`live-${game}`}
+          game={game}
           schema={schema}
-          onReloadSchema={() => void reloadSchema('csgo')}
+          onReloadSchema={() => void reloadSchema(game)}
           rconHealth={status.health}
           onOpenSettings={() => goPage('settings')}
         />

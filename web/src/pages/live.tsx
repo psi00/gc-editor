@@ -8,9 +8,9 @@ import { useReport } from '../lib/report'
 import { rconHint } from '../lib/rcon-hints'
 import type { SchemaState, GiveResponse, RconHealth } from '../lib/app-types'
 import {
-  BROWSE_TABS, isSkinKind, categoryForKind, isGunWeapon, isKnifeWeapon, isGloveWeapon,
+  BROWSE_TABS, GAME_LABELS, isSkinKind, categoryForKind, isGunWeapon, isKnifeWeapon, isGloveWeapon,
   skinImage, categoryImage, agentMatchesTeam, skinSource,
-  type Kind, type Skin, type CategoryItem, type Weapon,
+  type GameId, type Kind, type Skin, type CategoryItem, type Weapon,
 } from '../lib/catalog'
 import { CategoryBar } from '../components/shell/category-bar'
 import { FilterSidebar, MobileFilters, type FilterState } from '../components/shell/sidebar'
@@ -27,13 +27,15 @@ import { cn } from '../lib/utils'
 const PAGE_STEP = 24
 const CATEGORY_LIMIT = 500
 
-export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }: {
+export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSettings }: {
+  game: GameId
   schema: SchemaState
   onReloadSchema: () => void
   rconHealth: RconHealth
   onOpenSettings: () => void
 }) {
   const report = useReport()
+  const rconOff = rconHealth === 'off'
 
   const [kind, setKind] = useState<Kind>('skins')
   const [weaponId, setWeaponId] = useState(7)
@@ -324,13 +326,25 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
       />
 
       <main className="page-shell pb-16 pt-7">
+        {rconOff && (
+          <div className="mb-5 flex flex-col gap-3 rounded-xl border border-warn/25 bg-warn/[.06] px-4 py-3 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <CircleAlert className="mt-0.5 size-4 shrink-0 text-warn-soft" />
+              <p className="min-w-0 text-xs leading-relaxed text-warn-soft">
+                RCON is disabled for {GAME_LABELS[game]} — gives will not send until its profile is enabled in Settings.
+              </p>
+            </div>
+            <Button variant="secondary" size="sm" className="self-start sm:self-auto" onClick={onOpenSettings}>Open settings</Button>
+          </div>
+        )}
+
         {rconHealth === 'auth' && (
           <div className="mb-5 flex flex-col gap-3 rounded-xl border border-err/30 bg-err/[.06] px-4 py-3 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 items-start gap-3">
               <CircleAlert className="mt-0.5 size-4 shrink-0 text-err-soft" />
               <p className="min-w-0 text-xs leading-relaxed text-err-soft">
-                RCON auth failed — gives will return ERR until the password in Settings matches the GC. An empty
-                password in config.txt accepts anything.
+                RCON auth failed for {GAME_LABELS[game]} — gives will return ERR until the password in Settings matches
+                the GC. An empty password in config.txt accepts anything.
               </p>
             </div>
             <Button variant="secondary" size="sm" className="self-start sm:self-auto" onClick={onOpenSettings}>Open settings</Button>
@@ -338,7 +352,7 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
         )}
 
         {kind === 'raw' ? (
-          <RawGivePanel />
+          <RawGivePanel game={game} />
         ) : kind === 'all' ? (
           schemaNotice ?? (
             <BrowseOverview
@@ -428,7 +442,8 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
 
       {skinSelection && (
         <SkinConfigurator
-          key={`${skinSelection.weaponId}-${skinSelection.paint}`}
+          key={`${game}-${skinSelection.weaponId}-${skinSelection.paint}`}
+          game={game}
           selection={skinSelection}
           open={skinOpen}
           onOpenChange={setSkinOpen}
@@ -437,7 +452,8 @@ export function LivePage({ schema, onReloadSchema, rconHealth, onOpenSettings }:
 
       {genericSelection && (
         <GenericConfigurator
-          key={`${genericSelection.kind}-${genericSelection.item.def_index}`}
+          key={`${game}-${genericSelection.kind}-${genericSelection.item.def_index}`}
+          game={game}
           selection={genericSelection}
           open={genericOpen}
           onOpenChange={setGenericOpen}
@@ -491,7 +507,7 @@ function BrowseOverview({ weapons, counts, loading, onPick }: {
   )
 }
 
-function RawGivePanel() {
+function RawGivePanel({ game }: { game: GameId }) {
   const report = useReport()
   const [def, setDef] = useState('7')
   const [countText, setCountText] = useState('1')
@@ -500,11 +516,13 @@ function RawGivePanel() {
   const [result, setResult] = useState<GiveResponse | null>(null)
   const [error, setError] = useState('')
 
+  const profile = store.profile(game)
+  const rconDisabled = !profile.enabled
   const defIndex = Number(def)
   const defValid = def.trim() !== '' && Number.isInteger(defIndex) && defIndex > 0
   const count = Number(countText)
   const countValid = Number.isInteger(count) && count >= 1 && count <= 100
-  const canSubmit = !submitting && defValid && countValid
+  const canSubmit = !submitting && !rconDisabled && defValid && countValid
 
   const submit = async () => {
     if (!canSubmit) return
@@ -514,7 +532,7 @@ function RawGivePanel() {
     try {
       const response: GiveResponse = await api('/api/rcon/give', {
         method: 'POST',
-        body: JSON.stringify({ host: store.host, port: store.port, password: store.password, autosave, item: { def_index: defIndex, count } }),
+        body: JSON.stringify({ host: profile.host, port: profile.port, password: profile.password, autosave, item: { def_index: defIndex, count } }),
       })
       setResult(response)
       report(
@@ -569,6 +587,11 @@ function RawGivePanel() {
         </div>
         {!defValid && <p className="mt-2 text-[11px] text-err-soft">Def index must be a positive whole number.</p>}
         {!countValid && <p className="mt-2 text-[11px] text-err-soft">Count must be between 1 and 100.</p>}
+        {rconDisabled && (
+          <p className="mt-2 text-[11px] text-warn-soft">
+            RCON is disabled for {GAME_LABELS[game]} in Settings. Enable that profile to send items.
+          </p>
+        )}
 
         <label className="mt-4 flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
           <Checkbox checked={autosave} onCheckedChange={(checked) => setAutosave(checked === true)} />

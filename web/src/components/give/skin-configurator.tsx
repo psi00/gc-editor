@@ -5,7 +5,8 @@ import { useReport } from '../../lib/report'
 import { rconHint } from '../../lib/rcon-hints'
 import type { GiveItem, GiveResponse } from '../../lib/app-types'
 import {
-  categoryImage, isGloveDef, rarityLabel, round4, skinImage, wearBand, wearBandId, WEAR_PRESETS,
+  GAME_LABELS, categoryImage, isGloveDef, rarityLabel, round4, skinImage, wearBand, wearBandId, WEAR_PRESETS,
+  type GameId,
 } from '../../lib/catalog'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
@@ -26,7 +27,8 @@ export type SkinSelection = {
 
 const SLOTS = 6
 
-export function SkinConfigurator({ selection, open, onOpenChange, onAdd }: {
+export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange, onAdd }: {
+  game?: GameId
   selection: SkinSelection
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -35,6 +37,8 @@ export function SkinConfigurator({ selection, open, onOpenChange, onAdd }: {
 }) {
   const isGlove = isGloveDef(selection.weaponId)
   const local = Boolean(onAdd)
+  const profile = store.profile(game)
+  const rconDisabled = !local && !profile.enabled
   const report = useReport()
 
   const [wear, setWear] = useState(0.0001)
@@ -54,7 +58,7 @@ export function SkinConfigurator({ selection, open, onOpenChange, onAdd }: {
   const seedValid = seedText.trim() !== '' && Number.isInteger(seed) && seed >= 0 && seed <= 999
   const stattrakValid = stattrak.trim() === '' || (/^\d+$/.test(stattrak.trim()) && Number(stattrak) >= 0)
   const nameValid = customName.length <= 64
-  const canSubmit = !submitting && seedValid && stattrakValid && nameValid
+  const canSubmit = !submitting && !rconDisabled && seedValid && stattrakValid && nameValid
 
   const accent = selection.rarity?.color || '#6d7486'
   const stickerCount = stickers.filter(Boolean).length
@@ -101,7 +105,7 @@ export function SkinConfigurator({ selection, open, onOpenChange, onAdd }: {
     try {
       const response: GiveResponse = await api('/api/rcon/give', {
         method: 'POST',
-        body: JSON.stringify({ host: store.host, port: store.port, password: store.password, autosave, item }),
+        body: JSON.stringify({ host: profile.host, port: profile.port, password: profile.password, autosave, item }),
       })
       setResult(response)
       report(
@@ -292,6 +296,12 @@ export function SkinConfigurator({ selection, open, onOpenChange, onAdd }: {
                   <Checkbox checked={autosave} onCheckedChange={(checked) => setAutosave(checked === true)} />
                   Run <span className="font-mono text-[11px] text-foreground/80">save_inventory</span> after adding
                 </label>
+              )}
+
+              {rconDisabled && (
+                <p className="text-[11px] leading-relaxed text-warn-soft">
+                  RCON is disabled for {GAME_LABELS[game]} in Settings. Enable that profile to send items.
+                </p>
               )}
 
               {error && <div className="log-surface err">{error}</div>}

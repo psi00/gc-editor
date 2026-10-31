@@ -110,10 +110,10 @@ React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
   and `game/csgo_gc/` respectively. `server/paths.js` accepts either the install
   root or the `game/` directory for CS2. Override with `CSGO_LEGACY_DIR` and
   `CS2_DIR`, or the per-game fields in Settings.
-- The Gallery owns the game choice. Its header switch picks CS:GO or CS2 for the
-  inventory editor and stores that choice on the server
-  (`POST /api/settings { "game": "cs2" }`). Live is always CS:GO: RCON only works
-  with the CS:GO GC, so Live never follows the Gallery switch and hides it.
+- The header game switch picks CS:GO or CS2 for Live and Gallery and stores that
+  choice on the server (`POST /api/settings { "game": "cs2" }`). Each game has its
+  own RCON profile (host, port, password, enabled) in Settings; both can be
+  enabled at once, and Live sends through the selected game's profile.
 - Schema and inventory reads take a `?game=csgo|cs2` query parameter, so the
   client is explicit instead of relying on server state. `/api/schema/*` accepts
   it on every route; `/api/inventory` and `/api/inventory/backups` use it for the

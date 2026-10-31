@@ -2,7 +2,7 @@ import type { GameId, Weapon } from './catalog'
 
 export type Tab = 'live' | 'offline' | 'activity' | 'settings'
 
-export type RconHealth = 'unknown' | 'ready' | 'auth' | 'gc'
+export type RconHealth = 'unknown' | 'ready' | 'auth' | 'gc' | 'off'
 
 export type RconStatus = {
   health: RconHealth

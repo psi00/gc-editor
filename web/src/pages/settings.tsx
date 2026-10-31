@@ -2,32 +2,34 @@ import { useEffect, useState } from 'react'
 import {
   Eraser, Eye, EyeOff, FolderOpen, Loader2, Palette, RefreshCw, Save, Wifi, WifiOff,
 } from 'lucide-react'
-import { api, store } from '../lib/api'
+import { api, store, type RconProfile } from '../lib/api'
 import { useReport } from '../lib/report'
 import { rconHint } from '../lib/rcon-hints'
 import type { RconStatus, SettingsInfo } from '../lib/app-types'
 import type { GameId } from '../lib/catalog'
 import { GAME_LABELS } from '../lib/catalog'
 import { Button } from '../components/ui/button'
+import { Checkbox } from '../components/ui/checkbox'
 import { Input } from '../components/ui/input'
 import { cn } from '../lib/utils'
 
-type Reply = { command: 'ping' | 'status'; raw: string; ok: boolean }
+type Reply = { game: GameId; command: 'ping' | 'status'; raw: string; ok: boolean }
 
 export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus }: {
   settings: SettingsInfo | null
   onReloadSettings: () => Promise<void>
   status: RconStatus
-  onCheckStatus: () => void
+  onCheckStatus: (game: GameId) => void
 }) {
   const report = useReport()
 
-  const [host, setHost] = useState(store.host)
-  const [port, setPort] = useState(store.port)
-  const [password, setPassword] = useState(store.password)
-  const [showPassword, setShowPassword] = useState(false)
+  const [profiles, setProfiles] = useState<Record<GameId, RconProfile>>(() => ({
+    csgo: { ...store.csgo },
+    cs2: { ...store.cs2 },
+  }))
+  const [showPassword, setShowPassword] = useState<Record<GameId, boolean>>({ csgo: false, cs2: false })
   const [dirs, setDirs] = useState<Record<GameId, string>>({ csgo: '', cs2: '' })
-  const [testing, setTesting] = useState<'ping' | 'status' | null>(null)
+  const [testing, setTesting] = useState<{ game: GameId; command: 'ping' | 'status' } | null>(null)
   const [savingGame, setSavingGame] = useState<GameId | null>(null)
   const [reply, setReply] = useState<Reply | null>(null)
   const [error, setError] = useState('')
@@ -39,29 +41,38 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
 
   const cssDirty = css !== savedCss
 
-  const portValid = Number(port) > 0 && Number(port) <= 65535
-  const hostValid = host.trim().length > 0
+  const updateProfile = (game: GameId, patch: Partial<RconProfile>) => {
+    const next = { ...profiles, [game]: { ...profiles[game], ...patch } }
+    setProfiles(next)
+    Object.assign(store.profile(game), next[game])
+    store.save(game)
+  }
 
-  const test = async (command: 'ping' | 'status') => {
-    setTesting(command)
+  const profileValid = (profile: RconProfile) => (
+    profile.host.trim().length > 0 && Number(profile.port) > 0 && Number(profile.port) <= 65535
+  )
+
+  const test = async (game: GameId, command: 'ping' | 'status') => {
+    const profile = profiles[game]
+    setTesting({ game, command })
     setError('')
     setReply(null)
     try {
       const response = await api('/api/rcon', {
         method: 'POST',
-        body: JSON.stringify({ host: store.host, port: store.port, password: store.password, command }),
+        body: JSON.stringify({ host: profile.host, port: profile.port, password: profile.password, command }),
       })
-      setReply({ command, raw: String(response.raw ?? ''), ok: Boolean(response.ok) })
+      setReply({ game, command, raw: String(response.raw ?? ''), ok: Boolean(response.ok) })
       report(
-        { kind: 'rcon', label: `${command} test`, raw: String(response.raw ?? ''), ok: Boolean(response.ok) },
-        { title: `${command} reply`, body: String(response.raw ?? '') },
+        { kind: 'rcon', label: `${GAME_LABELS[game]} ${command} test`, raw: String(response.raw ?? ''), ok: Boolean(response.ok) },
+        { title: `${GAME_LABELS[game]} ${command} reply`, body: String(response.raw ?? '') },
         response.ok ? 'ok' : 'err',
       )
-      onCheckStatus()
+      onCheckStatus(game)
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
       setError(message)
-      report({ kind: 'error', label: `${command} test`, raw: message, ok: false }, { title: 'RCON request failed', body: message }, 'err')
+      report({ kind: 'error', label: `${GAME_LABELS[game]} ${command} test`, raw: message, ok: false }, { title: 'RCON request failed', body: message }, 'err')
     } finally {
       setTesting(null)
     }
@@ -157,66 +168,113 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
       <div className="grid gap-4 xl:min-h-[calc(100vh-156px)] xl:grid-cols-2 xl:items-stretch">
         <div className="flex min-w-0 flex-col gap-4">
           <section className="panel">
-            <h2 className="flex items-center gap-2 text-sm font-medium"><Wifi className="size-4 text-primary" />RCON</h2>
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <label>
-                <span className="field-label">Host</span>
-                <Input
-                  value={host}
-                  onChange={(event) => { setHost(event.target.value); store.host = event.target.value; store.save() }}
-                  placeholder="127.0.0.1"
-                  className={cn('h-9 text-xs', !hostValid && 'border-err-strong/70')}
-                  autoComplete="off"
-                />
-              </label>
-              <label>
-                <span className="field-label">Port</span>
-                <Input
-                  value={port}
-                  onChange={(event) => { setPort(event.target.value); store.port = event.target.value; store.save() }}
-                  placeholder="37016"
-                  inputMode="numeric"
-                  className={cn('h-9 text-xs', !portValid && 'border-err-strong/70')}
-                  autoComplete="off"
-                />
-              </label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-medium"><Wifi className="size-4 text-primary" />RCON</h2>
+              <span className="text-[11px] text-muted-foreground">one profile per game · both can be enabled</span>
             </div>
 
-            <label className="mt-2 block">
-              <span className="field-label">Password</span>
-              <div className="flex items-center gap-2">
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(event) => { setPassword(event.target.value); store.password = event.target.value; store.save() }}
-                  placeholder="rcon password"
-                  className="h-9 flex-1 text-xs"
-                  autoComplete="new-password"
-                  spellCheck={false}
-                />
-                <Button variant="secondary" size="icon" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((value) => !value)}>
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </Button>
-              </div>
-            </label>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {(['csgo', 'cs2'] as GameId[]).map((game) => {
+                const profile = profiles[game]
+                const valid = profileValid(profile)
+                const busy = testing?.game === game ? testing.command : null
+                const activeReply = reply?.game === game ? reply : null
+                const shownStatus = settings?.game === game ? status : null
+                return (
+                  <div
+                    key={game}
+                    className={cn(
+                      'rounded-xl border p-3 transition',
+                      profile.enabled ? 'border-white/[.09] bg-white/[.02]' : 'border-white/[.05] bg-black/10 opacity-80',
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-foreground">{GAME_LABELS[game]}</span>
+                      <label className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
+                        <Checkbox
+                          checked={profile.enabled}
+                          onCheckedChange={(checked) => {
+                            updateProfile(game, { enabled: checked === true })
+                            onCheckStatus(game)
+                          }}
+                          aria-label={`Enable ${GAME_LABELS[game]} RCON`}
+                        />
+                        Enabled
+                      </label>
+                    </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={() => void test('ping')} disabled={testing !== null || !hostValid || !portValid}>
-                {testing === 'ping' ? <Loader2 className="size-3.5 animate-spin" /> : <Wifi className="size-3.5" />}Ping
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => void test('status')} disabled={testing !== null || !hostValid || !portValid}>
-                {testing === 'status' ? <Loader2 className="size-3.5 animate-spin" /> : <WifiOff className="size-3.5" />}Status
-              </Button>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <label>
+                        <span className="field-label">Host</span>
+                        <Input
+                          value={profile.host}
+                          onChange={(event) => updateProfile(game, { host: event.target.value })}
+                          placeholder="127.0.0.1"
+                          className={cn('h-9 text-xs', !profile.host.trim() && 'border-err-strong/70')}
+                          autoComplete="off"
+                          disabled={!profile.enabled}
+                        />
+                      </label>
+                      <label>
+                        <span className="field-label">Port</span>
+                        <Input
+                          value={profile.port}
+                          onChange={(event) => updateProfile(game, { port: event.target.value })}
+                          placeholder="37016"
+                          inputMode="numeric"
+                          className={cn('h-9 text-xs', !(Number(profile.port) > 0 && Number(profile.port) <= 65535) && 'border-err-strong/70')}
+                          autoComplete="off"
+                          disabled={!profile.enabled}
+                        />
+                      </label>
+                    </div>
+
+                    <label className="mt-2 block">
+                      <span className="field-label">Password</span>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type={showPassword[game] ? 'text' : 'password'}
+                          value={profile.password}
+                          onChange={(event) => updateProfile(game, { password: event.target.value })}
+                          placeholder="rcon password"
+                          className="h-9 flex-1 text-xs"
+                          autoComplete="new-password"
+                          spellCheck={false}
+                          disabled={!profile.enabled}
+                        />
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          aria-label={showPassword[game] ? 'Hide password' : 'Show password'}
+                          onClick={() => setShowPassword((current) => ({ ...current, [game]: !current[game] }))}
+                          disabled={!profile.enabled}
+                        >
+                          {showPassword[game] ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </Button>
+                      </div>
+                    </label>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button variant="secondary" size="sm" onClick={() => void test(game, 'ping')} disabled={busy !== null || !profile.enabled || !valid}>
+                        {busy === 'ping' ? <Loader2 className="size-3.5 animate-spin" /> : <Wifi className="size-3.5" />}Ping
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => void test(game, 'status')} disabled={busy !== null || !profile.enabled || !valid}>
+                        {busy === 'status' ? <Loader2 className="size-3.5 animate-spin" /> : <WifiOff className="size-3.5" />}Status
+                      </Button>
+                    </div>
+
+                    {(activeReply || (shownStatus && shownStatus.raw)) && (
+                      <div className={cn('log-surface mt-3', (activeReply?.ok ?? shownStatus?.health === 'ready') ? 'ok' : 'err')}>
+                        {activeReply ? `${activeReply.command} -> ${activeReply.raw}` : `status -> ${shownStatus?.raw}`}
+                        {'\n'}
+                        <span className="text-white/45">{rconHint(activeReply?.raw ?? shownStatus?.raw ?? '')}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
-            {(reply || status.raw) && (
-              <div className={cn('log-surface mt-3', (reply?.ok ?? status.health === 'ready') ? 'ok' : 'err')}>
-                {reply ? `${reply.command} -> ${reply.raw}` : `status -> ${status.raw}`}
-                {'\n'}
-                <span className="text-white/45">{rconHint(reply?.raw ?? status.raw)}</span>
-              </div>
-            )}
             {error && <div className="log-surface err mt-3">{error}</div>}
           </section>
 
@@ -279,8 +337,8 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
             </div>
           ))}
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-            Saving re-reads every path. Leave blank to auto-detect. Both installs can be active at once. The Gallery
-            switch chooses the catalogue for inventory.txt; Live always uses CS:GO because RCON only supports it.
+            Saving re-reads every path. Leave blank to auto-detect. Both installs can be active at once. The game
+            switch chooses the catalogue and the matching RCON profile in Live and Gallery.
           </p>
 
           <div className="mt-4 overflow-hidden rounded-xl border border-white/[.06]">

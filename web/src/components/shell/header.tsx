@@ -29,6 +29,7 @@ const HEALTH: Record<RconStatus['health'], { label: string; dot: string; hint: s
   ready: { label: 'rcon ready', dot: '', hint: 'The GC answered status, so the client is registered.' },
   auth: { label: 'rcon auth failed', dot: 'err', hint: 'The server rejected the password. Check the rcon block in csgo_gc/config.txt.' },
   gc: { label: 'gc unavailable', dot: 'warn', hint: 'The game is not reachable or no client GC is registered yet.' },
+  off: { label: 'rcon off', dot: 'idle', hint: 'RCON is disabled for this game in Settings.' },
 }
 
 function NavTabs({ mode, page, onMode, onPage }: {
@@ -96,15 +97,15 @@ export function Header({ mode, page, onMode, onPage, status, onOpenSettings, gam
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          {mode === 'offline' && page === 'mode' && (
+          {page === 'mode' && (
             <>
-              <nav className="flex items-center gap-1" aria-label="Gallery catalogue">
+              <nav className="flex items-center gap-1" aria-label="Game">
                 {GAME_TABS.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => onGame(tab.id)}
                     aria-pressed={game === tab.id}
-                    aria-label={`Use the ${tab.label} catalogue`}
+                    aria-label={`Use ${tab.label}`}
                     className={cn('nav-link', game === tab.id && 'active')}
                   >
                     {tab.label}
