@@ -41,6 +41,7 @@ export type Kind =
   | 'cases'
   | 'keys'
   | 'keychains'
+  | 'charms'
   | 'music'
   | 'raw'
 
@@ -52,7 +53,7 @@ export const KINDS: { id: Kind; label: string; category?: string }[] = [
   { id: 'agents', label: 'Agents', category: 'agents' },
   { id: 'cases', label: 'Cases', category: 'crates' },
   { id: 'keys', label: 'Keys', category: 'keys' },
-  { id: 'keychains', label: 'Keychains', category: 'keychains' },
+  { id: 'charms', label: 'Charms', category: 'keychains' },
   { id: 'music', label: 'Music', category: 'music_kits' },
   { id: 'raw', label: 'Manual' },
 ]
@@ -67,9 +68,14 @@ export const BROWSE_TABS: { id: Exclude<Kind, 'raw'>; label: string }[] = [
   { id: 'agents', label: 'Agents' },
   { id: 'cases', label: 'Cases' },
   { id: 'keys', label: 'Keys' },
-  { id: 'keychains', label: 'Keychains' },
+  { id: 'charms', label: 'Charms' },
   { id: 'music', label: 'Music' },
 ]
+
+/** Charms exist only in CS2, so CS:GO hides that tab. */
+export function browseTabs(game: GameId) {
+  return game === 'cs2' ? BROWSE_TABS : BROWSE_TABS.filter((tab) => tab.id !== 'charms')
+}
 
 export const GLOVE_DEFS = [4725, 5027, 5030, 5031, 5032, 5033, 5034, 5035]
 

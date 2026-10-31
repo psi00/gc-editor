@@ -182,6 +182,9 @@ button:disabled { cursor: not-allowed; }
 .dialog-art-sm img { width: 82%; max-height: 250px; }
 .dialog-art .art-fallback { font-size: 34px; }
 .sticker-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+/* CS2 puts the charm in the last column of the sticker row */
+.sticker-row-charm { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.sticker-row-charm .charm-slot { grid-column: -2 / -1; }
 .sticker-slot { position: relative; aspect-ratio: 1 / 1; border: 1px dashed rgba(255,255,255,.14); border-radius: 9px; background: hsl(var(--surface-sunken)); color: hsl(var(--muted-foreground)); cursor: pointer; display: grid; place-items: center; padding: 4px; overflow: hidden; font-size: 11px; transition: border-color .15s, transform .15s var(--ease-out); }
 .sticker-slot:hover { border-color: rgba(255,255,255,.3); transform: translateY(-1px); }
 .sticker-slot.active { border-color: hsl(var(--primary)); border-style: solid; }
@@ -241,6 +244,8 @@ button:disabled { cursor: not-allowed; }
   .dialog-art img { width: 90%; max-height: 230px; }
   .item-card-list { grid-template-columns: 60px minmax(0,1fr); gap: 10px; }
   .sticker-row { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .sticker-row-charm { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .sticker-row-charm .charm-slot { grid-column: auto; }
 }
 @media (max-width: 560px) {
   .page-shell { width: calc(100% - 24px); }

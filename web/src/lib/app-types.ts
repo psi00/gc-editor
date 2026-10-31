@@ -82,6 +82,7 @@ export type GiveItem = {
   wear?: number
   stattrak?: number
   music?: number
+  keychain?: number
   spray_color?: number
   spray_remaining?: number
   tournament_event?: number

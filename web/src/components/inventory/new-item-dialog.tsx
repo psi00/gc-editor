@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, Grid2X2, List, Plus, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, Gem, Grid2X2, List, Plus, SlidersHorizontal, X } from 'lucide-react'
 import { api } from '../../lib/api'
 import type { GiveItem, SchemaState } from '../../lib/app-types'
 import {
-  BROWSE_TABS, agentMatchesTeam, categoryForKind, categoryImage, isGloveWeapon, isGunWeapon, isKnifeWeapon,
+  browseTabs, agentMatchesTeam, categoryForKind, categoryImage, isGloveWeapon, isGunWeapon, isKnifeWeapon,
   isSkinKind, skinImage, skinSource,
-  type CategoryItem, type Kind, type Skin,
+  type CategoryItem, type GameId, type Kind, type Skin,
 } from '../../lib/catalog'
 import { FilterSidebar, MobileFilters, type FilterState } from '../shell/sidebar'
 import { ItemGrid } from '../catalog/item-grid'
@@ -24,7 +24,8 @@ const CATEGORY_LIMIT = 500
  * opens the same configurator in local mode: the item is staged into
  * inventory.txt and nothing is sent over RCON.
  */
-export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
+export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
+  game: GameId
   open: boolean
   onOpenChange: (open: boolean) => void
   schema: SchemaState
@@ -55,6 +56,7 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
   const [genericSelection, setGenericSelection] = useState<GenericSelection | null>(null)
   const [skinOpen, setSkinOpen] = useState(false)
   const [genericOpen, setGenericOpen] = useState(false)
+  const [pendingCharm, setPendingCharm] = useState<{ id: string; name: string } | null>(null)
 
   const category = kind === 'all' || kind === 'raw' ? null : categoryForKind(kind)
   const skinKind = isSkinKind(kind)
@@ -124,7 +126,12 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
 
   useEffect(() => { setVisible(PAGE_STEP) }, [kind, weaponId, knifeId, gloveId, query, rarity, agentTeam])
   useEffect(() => { setRarity(''); setQuery('') }, [kind])
-  useEffect(() => { if (!open) setAdded(0) }, [open])
+  useEffect(() => {
+    if (!open) {
+      setAdded(0)
+      setPendingCharm(null)
+    }
+  }, [open])
 
   const activeSkins = skinKind && skinsWeaponId === activeWeaponId ? skins : []
   const activeCatItems = category && catItemsCategory === category ? catItems : []
@@ -186,7 +193,7 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
   const filterState: FilterState = {
     query,
     onQuery: setQuery,
-    queryPlaceholder: skinKind ? `search ${activeWeapon?.name ?? 'weapon'} skins` : `search ${category ?? 'category'}`,
+    queryPlaceholder: skinKind ? `search ${activeWeapon?.name ?? 'weapon'} skins` : kind === 'charms' ? 'search charms' : `search ${category ?? 'category'}`,
     showSearch: kind !== 'all',
     searchDisabled: kind === 'all',
     weapon: kind === 'skins'
@@ -224,6 +231,14 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
     }
     const item = filteredCategory.find((entry) => entry.def_index === String(card.id))
     if (!item || !category) return
+    if (kind === 'charms') {
+      setPendingCharm({ id: item.def_index, name: item.name })
+      setKind('skins')
+      setQuery('')
+      setSkinSelection(null)
+      setGenericSelection(null)
+      return
+    }
     setGenericSelection({ kind, category, item })
     setGenericOpen(true)
   }
@@ -247,7 +262,7 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
           </div>
 
           <nav className="no-scrollbar flex shrink-0 gap-0.5 overflow-x-auto border-b border-white/[.06] px-3 py-1.5" aria-label="New item categories">
-            {BROWSE_TABS.map((tab) => (
+            {browseTabs(game).map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => {
@@ -257,6 +272,7 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
                 }}
                 className={cn('category-link', kind === tab.id && 'active')}
                 aria-current={kind === tab.id ? 'page' : undefined}
+                data-category={tab.id}
               >
                 {tab.label}
               </button>
@@ -272,6 +288,16 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
               <div className="workspace">
                 <FilterSidebar state={filterState} />
                 <section className="new-item-results min-w-0 flex-1" aria-label="New item results">
+                  {pendingCharm && (
+                    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/[.055] px-3 py-2">
+                      <Gem className="size-3.5 text-primary" />
+                      <span className="text-[11px] text-foreground">Charm selected: <b className="font-medium">{pendingCharm.name}</b></span>
+                      <span className="text-[11px] text-muted-foreground">open a weapon to attach it</span>
+                      <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setPendingCharm(null)}>
+                        <X className="size-3.5" />Clear
+                      </Button>
+                    </div>
+                  )}
                   <div className="results-toolbar">
                     <div className="min-w-0 text-[11px] text-muted-foreground">
                       {loading ? 'Loading the catalog…' : <>Showing <b className="font-medium text-foreground/75">{Math.min(visible, total)}</b> of {total} {skinKind ? 'skins' : 'items'}</>}
@@ -315,7 +341,9 @@ export function NewItemDialog({ open, onOpenChange, schema, onAdd }: {
 
         {skinSelection && (
           <SkinConfigurator
-            key={`${skinSelection.weaponId}-${skinSelection.paint}`}
+            key={`${skinSelection.weaponId}-${skinSelection.paint}-${pendingCharm?.id ?? ''}`}
+            game={game}
+            initialKeychain={pendingCharm?.id}
             selection={skinSelection}
             open={skinOpen}
             onOpenChange={setSkinOpen}
@@ -348,7 +376,6 @@ function CatalogOverview({ schema, onPick }: { schema: SchemaState; onPick: (kin
     { id: 'agents', label: 'Agents', count: schema.counts.agents },
     { id: 'cases', label: 'Cases', count: schema.counts.crates },
     { id: 'keys', label: 'Keys', count: schema.counts.keys },
-    { id: 'keychains', label: 'Keychains', count: schema.counts.keychains },
     { id: 'music', label: 'Music', count: schema.counts.music_kits },
   ]
   return (

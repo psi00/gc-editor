@@ -1,23 +1,26 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { Sticker, Trash2, X } from 'lucide-react'
+import { Gem, Sticker, Trash2, X } from 'lucide-react'
 import type { InvItem } from '../../lib/app-types'
 import { itemPaint, type ResolvedInventory } from '../../lib/inventory-catalog'
-import { formatWear, categoryImage, isGloveDef, rarityLabel, round4, wearBand, wearBandId, WEAR_PRESETS } from '../../lib/catalog'
+import { formatWear, categoryImage, isGloveDef, rarityLabel, round4, wearBand, wearBandId, WEAR_PRESETS, type GameId } from '../../lib/catalog'
 import { Button } from '../ui/button'
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
 import { Input } from '../ui/input'
 import { Slider } from '../ui/slider'
 import { SafeImage } from '../common/safe-image'
 import { StickerPicker } from '../give/sticker-picker'
+import { KeychainPicker } from '../give/keychain-picker'
 import { cn } from '../../lib/utils'
 
 const SLOTS = 6
 const STICKER_BASE = 113
+const KEYCHAIN_BASE = 299
 
 /** Attributes surfaced by the dedicated controls; everything else stays raw. */
-const MANAGED_ATTRS = new Set(['7', '8', '80', '81', '111'])
+const MANAGED_ATTRS = new Set(['7', '8', '80', '81', '111', '299', '300', '301', '302'])
 
 type InventoryItemDialogProps = {
+  game: GameId
   item: InvItem
   open: boolean
   resolved?: ResolvedInventory
@@ -29,7 +32,7 @@ type InventoryItemDialogProps = {
 }
 
 export function InventoryItemDialog({
-  item, open, resolved, onClose, onName, onAttr, onPosition, onDelete,
+  game, item, open, resolved, onClose, onName, onAttr, onPosition, onDelete,
 }: InventoryItemDialogProps) {
   const isGlove = resolved?.isGlove ?? isGloveDef(item.def_index)
   const paint = itemPaint(item)
@@ -42,6 +45,7 @@ export function InventoryItemDialog({
   const [positionText, setPositionText] = useState(String(item.inventory))
   const [attrDrafts, setAttrDrafts] = useState<Record<string, string>>({})
   const [pickSlot, setPickSlot] = useState<number | null>(null)
+  const [pickKeychain, setPickKeychain] = useState(false)
 
   // Reset the free-text mirrors when the dialog points at another item. The
   // attribute object is recreated on every edit, so key this on the id alone.
@@ -52,6 +56,7 @@ export function InventoryItemDialog({
     setPositionText(String(item.inventory))
     setAttrDrafts({})
     setPickSlot(null)
+    setPickKeychain(false)
   }, [item.id])
 
   const wearRaw = item.attributes?.['8']
@@ -103,6 +108,18 @@ export function InventoryItemDialog({
       for (let offset = 1; offset < 4; offset += 1) onAttr(String(base + offset), null)
     }
     setPickSlot(null)
+  }
+
+  const keychain = item.attributes?.[String(KEYCHAIN_BASE)] ?? ''
+
+  const setKeychain = (id: string | null) => {
+    if (id == null) {
+      for (let offset = 0; offset < 4; offset += 1) onAttr(String(KEYCHAIN_BASE + offset), null)
+    } else {
+      onAttr(String(KEYCHAIN_BASE), id)
+      for (let offset = 1; offset < 4; offset += 1) onAttr(String(KEYCHAIN_BASE + offset), '0.000000')
+    }
+    setPickKeychain(false)
   }
 
   const rawEntries = Object.entries(item.attributes ?? {})
@@ -225,18 +242,24 @@ export function InventoryItemDialog({
                 />
               </label>
 
-              {isSkin && !isGlove && (
+              {!isGlove && (isSkin || (game === 'cs2' && isWeapon)) && (
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="field-label mb-0 flex items-center gap-1.5"><Sticker className="size-3" />Stickers</span>
-                    {stickerCount > 0 && <span className="text-[11px] text-muted-foreground">{stickerCount} / {SLOTS}</span>}
+                    <span className="field-label mb-0 flex items-center gap-1.5">
+                      {isSkin ? <Sticker className="size-3" /> : <Gem className="size-3" />}
+                      {isSkin ? 'Stickers' : 'Charm'}
+                    </span>
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      {isSkin && stickerCount > 0 && <span>{stickerCount} / {SLOTS}</span>}
+                      {isSkin && game === 'cs2' && isWeapon && <span className="flex items-center gap-1"><Gem className="size-3" />Charm</span>}
+                    </div>
                   </div>
-                  <div className="sticker-row">
-                    {stickers.map((id, index) => (
+                  <div className={cn('sticker-row', isSkin && game === 'cs2' && isWeapon && 'sticker-row-charm')}>
+                    {isSkin && stickers.map((id, index) => (
                       <button
                         key={index}
                         className={cn('sticker-slot', pickSlot === index && 'active')}
-                        onClick={() => setPickSlot(pickSlot === index ? null : index)}
+                        onClick={() => { setPickSlot(pickSlot === index ? null : index); setPickKeychain(false) }}
                         aria-label={id ? `Sticker slot ${index + 1}: ${id}. Change sticker` : `Add sticker to slot ${index + 1}`}
                         aria-pressed={pickSlot === index}
                         title={`Sticker slot ${index + 1}`}
@@ -246,6 +269,19 @@ export function InventoryItemDialog({
                           : <span className="slot-index">{index + 1}</span>}
                       </button>
                     ))}
+                    {game === 'cs2' && isWeapon && (
+                      <button
+                        className={cn('sticker-slot charm-slot', pickKeychain && 'active')}
+                        onClick={() => { setPickKeychain((value) => !value); setPickSlot(null) }}
+                        aria-label={keychain ? `Charm ${keychain}. Change charm` : 'Add a charm'}
+                        aria-pressed={pickKeychain}
+                        title="Charm"
+                      >
+                        {keychain
+                          ? <SafeImage src={categoryImage('keychains', keychain, 'cs2')} alt={`Charm ${keychain}`} fallback={keychain} />
+                          : <Gem className="size-3.5" />}
+                      </button>
+                    )}
                   </div>
                   {pickSlot !== null && (
                     <StickerPicker
@@ -254,6 +290,14 @@ export function InventoryItemDialog({
                       onPick={(id) => setSticker(pickSlot, id)}
                       onClear={() => setSticker(pickSlot, null)}
                       onClose={() => setPickSlot(null)}
+                    />
+                  )}
+                  {game === 'cs2' && isWeapon && pickKeychain && (
+                    <KeychainPicker
+                      value={keychain}
+                      onPick={(id) => setKeychain(id)}
+                      onClear={() => setKeychain(null)}
+                      onClose={() => setPickKeychain(false)}
                     />
                   )}
                 </div>

@@ -25,6 +25,7 @@ export function CategoryBar({ label, tabs, value, onChange, trailing }: {
               onClick={() => onChange(tab.id)}
               className={cn('category-link', value === tab.id && 'active')}
               aria-current={value === tab.id ? 'page' : undefined}
+              data-category={tab.id}
             >
               {tab.label}
             </button>

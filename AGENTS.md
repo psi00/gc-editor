@@ -146,6 +146,10 @@ React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
 - Attributes 113 through 136 cover six sticker slots with four attributes each:
   id, wear, scale, and rotation. Slot 0 uses 113 through 116, and slot 5 uses 133
   through 136.
+- CS2 charms are attributes **299 through 302** on the weapon: keychain id and
+  slot-0 offset x/y/z. The id is a keychain id (1-78), **not** an item def_index,
+  so `give_item 1` is a Desert Eagle. Only send `keychain=` for CS2 and never for
+  gloves.
 - Attribute 111 is a **string** name tag, and this fork writes it there.
   `custom_name` is legacy. Don't pass attribute 111 through numeric
   normalization. `quality` 9 means StatTrak, and 12 means Souvenir.

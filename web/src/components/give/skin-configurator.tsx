@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react'
-import { Loader2, Plus, Sticker, X } from 'lucide-react'
+import { Gem, Loader2, Plus, Sticker, X } from 'lucide-react'
 import { api, quoteName, store } from '../../lib/api'
 import { useReport } from '../../lib/report'
 import { rconHint } from '../../lib/rcon-hints'
@@ -15,6 +15,7 @@ import { Input } from '../ui/input'
 import { Slider } from '../ui/slider'
 import { SafeImage } from '../common/safe-image'
 import { StickerPicker } from './sticker-picker'
+import { KeychainPicker } from './keychain-picker'
 import { cn } from '../../lib/utils'
 
 export type SkinSelection = {
@@ -27,15 +28,18 @@ export type SkinSelection = {
 
 const SLOTS = 6
 
-export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange, onAdd }: {
+export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange, onAdd, initialKeychain = '' }: {
   game?: GameId
   selection: SkinSelection
   open: boolean
   onOpenChange: (open: boolean) => void
   /** When set, the item is staged into inventory.txt instead of sent over RCON. */
   onAdd?: (item: GiveItem) => void
+  /** Charm preselected from the Charms tab. */
+  initialKeychain?: string
 }) {
   const isGlove = isGloveDef(selection.weaponId)
+  const isCs2 = game === 'cs2'
   const local = Boolean(onAdd)
   const profile = store.profile(game)
   const rconDisabled = !local && !profile.enabled
@@ -49,6 +53,8 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
   const [customName, setCustomName] = useState('')
   const [stickers, setStickers] = useState<string[]>(Array(SLOTS).fill(''))
   const [pickSlot, setPickSlot] = useState<number | null>(null)
+  const [keychain, setKeychain] = useState(initialKeychain)
+  const [pickKeychain, setPickKeychain] = useState(false)
   const [autosave, setAutosave] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<GiveResponse | null>(null)
@@ -69,9 +75,10 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
     parts.push(`paint=${selection.paint}`, `wear=${round4(wear)}`, `seed=${seedValid ? seed : 0}`)
     if (!isGlove && !souvenir && stattrak.trim() !== '' && stattrakValid) parts.push(`stattrak=${Number(stattrak)}`)
     if (customName.trim()) parts.push(`name=${quoteName(customName.trim())}`)
+    if (isCs2 && keychain) parts.push(`keychain=${keychain}`)
     if (!isGlove) stickers.forEach((id, index) => { if (id) parts.push(`sticker${index}=${id}`) })
     return parts.join(' ')
-  }, [selection, wear, seed, seedValid, stattrak, stattrakValid, customName, stickers, isGlove, souvenir])
+  }, [selection, wear, seed, seedValid, stattrak, stattrakValid, customName, stickers, isGlove, souvenir, isCs2, keychain])
 
   const setWearValue = (value: number) => {
     const next = round4(Math.min(1, Math.max(0, value)))
@@ -90,6 +97,7 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
       seed,
       stattrak: !isGlove && !souvenir && stattrak.trim() !== '' ? Number(stattrak) : undefined,
       name: customName.trim() || undefined,
+      keychain: isCs2 && !isGlove && keychain ? Number(keychain) : undefined,
       stickers: isGlove ? [] : stickers.map((id) => (id ? { id: Number(id) } : null)),
     }
 
@@ -246,14 +254,17 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="field-label mb-0 flex items-center gap-1.5"><Sticker className="size-3" />Stickers</span>
-                    {stickerCount > 0 && <span className="text-[11px] text-muted-foreground">{stickerCount} / {SLOTS}</span>}
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      {stickerCount > 0 && <span>{stickerCount} / {SLOTS}</span>}
+                      {isCs2 && <span className="flex items-center gap-1"><Gem className="size-3" />Charm</span>}
+                    </div>
                   </div>
-                  <div className="sticker-row">
+                  <div className={cn('sticker-row', isCs2 && 'sticker-row-charm')}>
                     {stickers.map((id, index) => (
                       <button
                         key={index}
                         className={cn('sticker-slot', pickSlot === index && 'active')}
-                        onClick={() => setPickSlot(pickSlot === index ? null : index)}
+                        onClick={() => { setPickSlot(pickSlot === index ? null : index); setPickKeychain(false) }}
                         aria-label={id ? `Sticker slot ${index + 1}: ${id}. Change sticker` : `Add sticker to slot ${index + 1}`}
                         aria-pressed={pickSlot === index}
                         title={`Sticker slot ${index + 1}`}
@@ -263,6 +274,19 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
                           : <span className="slot-index">{index + 1}</span>}
                       </button>
                     ))}
+                    {isCs2 && (
+                      <button
+                        className={cn('sticker-slot charm-slot', pickKeychain && 'active')}
+                        onClick={() => { setPickKeychain((value) => !value); setPickSlot(null) }}
+                        aria-label={keychain ? `Charm ${keychain}. Change charm` : 'Add a charm'}
+                        aria-pressed={pickKeychain}
+                        title="Charm"
+                      >
+                        {keychain
+                          ? <SafeImage src={categoryImage('keychains', keychain, 'cs2')} alt={`Charm ${keychain}`} fallback={keychain} />
+                          : <Gem className="size-3.5" />}
+                      </button>
+                    )}
                   </div>
                   {pickSlot !== null && (
                     <StickerPicker
@@ -277,6 +301,14 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
                         setPickSlot(null)
                       }}
                       onClose={() => setPickSlot(null)}
+                    />
+                  )}
+                  {isCs2 && pickKeychain && (
+                    <KeychainPicker
+                      value={keychain}
+                      onPick={(id) => { setKeychain(id); setPickKeychain(false) }}
+                      onClear={() => { setKeychain(''); setPickKeychain(false) }}
+                      onClose={() => setPickKeychain(false)}
                     />
                   )}
                 </div>

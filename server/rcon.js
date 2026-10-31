@@ -94,7 +94,7 @@ export function quoteValue(v) {
 }
 
 // builds give_item from structured fields. mirrors gt-610 editor command builder.
-export function buildGiveCommand({ def_index, count = 1, level, quality, rarity, name, paint, seed, wear, stattrak, music, spray_color, spray_remaining, tournament_event, tournament_stage, tournament_team0, tournament_team1, tournament_mvp, stickers = [] }) {
+export function buildGiveCommand({ def_index, count = 1, level, quality, rarity, name, paint, seed, wear, stattrak, music, keychain, spray_color, spray_remaining, tournament_event, tournament_stage, tournament_team0, tournament_team1, tournament_mvp, stickers = [] }) {
   if (count < 1 || count > 100) throw new Error('count must be 1-100')
   const parts = ['give_item', String(def_index)]
   if (count !== 1) parts.push(String(count))
@@ -107,6 +107,7 @@ export function buildGiveCommand({ def_index, count = 1, level, quality, rarity,
   if (wear != null) parts.push(`wear=${wear}`)
   if (stattrak != null) parts.push(`stattrak=${stattrak}`)
   if (music != null) parts.push(`music=${music}`)
+  if (keychain != null) parts.push(`keychain=${keychain}`)
   if (spray_color != null) parts.push(`spray_color=${spray_color}`)
   if (spray_remaining != null) parts.push(`spray_remaining=${spray_remaining}`)
   if (tournament_event != null) parts.push(`tournament_event=${tournament_event}`)

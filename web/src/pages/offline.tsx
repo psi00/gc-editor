@@ -16,7 +16,7 @@ import { InventoryItemDialog } from '../components/inventory/inv-item-dialog'
 import { NewItemDialog } from '../components/inventory/new-item-dialog'
 import { itemKey, itemNameTag, resolveInventory, type ResolvedInventory } from '../lib/inventory-catalog'
 import { buildInventoryItems } from '../lib/inv-build'
-import { BROWSE_TABS, isKnifeDef, skinSource, type GameId, type Kind, type Quality } from '../lib/catalog'
+import { browseTabs, isKnifeDef, skinSource, type GameId, type Kind, type Quality } from '../lib/catalog'
 import { cn } from '../lib/utils'
 import { CategoryBar } from '../components/shell/category-bar'
 import { FilterSidebar, MobileFilters, type FilterState } from '../components/shell/sidebar'
@@ -346,7 +346,9 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     const needle = query.trim().toLowerCase()
     return items.filter((item) => {
       const resolved = catalog.get(itemKey(item))
-      if (kind !== 'all' && galleryKindOf(item, resolved) !== kind) return false
+      if (kind === 'charms') {
+        if (!item.attributes?.['299']) return false
+      } else if (kind !== 'all' && galleryKindOf(item, resolved) !== kind) return false
       if (rarity && resolved?.rarity?.name !== rarity) return false
       if (quality === 'stattrak' && item.quality !== 9) return false
       if (quality === 'souvenir' && item.quality !== 12) return false
@@ -444,7 +446,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     <>
       <CategoryBar
         label="Inventory categories"
-        tabs={BROWSE_TABS}
+        tabs={browseTabs(game)}
         value={kind}
         onChange={(id) => setKind(id as GalleryKind)}
       />
@@ -631,6 +633,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
 
       {selected && (
         <InventoryItemDialog
+          game={game}
           item={selected}
           open={itemOpen}
           resolved={selectedResolved}
@@ -648,6 +651,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
       <NewItemDialog
         open={newItemOpen}
         onOpenChange={setNewItemOpen}
+        game={game}
         schema={schema}
         onAdd={addFromGive}
       />

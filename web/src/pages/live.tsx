@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Boxes, ChevronDown, CircleAlert, Database, Grid2X2, Images, Layers, List,
-  Loader2, PackageSearch, RotateCcw, SlidersHorizontal, Terminal,
+  Boxes, ChevronDown, CircleAlert, Database, Gem, Grid2X2, Images, Layers, List,
+  Loader2, PackageSearch, RotateCcw, SlidersHorizontal, Terminal, X,
 } from 'lucide-react'
 import { api, store } from '../lib/api'
 import { useReport } from '../lib/report'
 import { rconHint } from '../lib/rcon-hints'
 import type { SchemaState, GiveResponse, RconHealth } from '../lib/app-types'
 import {
-  BROWSE_TABS, GAME_LABELS, isSkinKind, categoryForKind, isGunWeapon, isKnifeWeapon, isGloveWeapon,
+  browseTabs, GAME_LABELS, isSkinKind, categoryForKind, isGunWeapon, isKnifeWeapon, isGloveWeapon,
   skinImage, categoryImage, agentMatchesTeam, skinSource,
   type GameId, type Kind, type Skin, type CategoryItem, type Weapon,
 } from '../lib/catalog'
@@ -63,6 +63,7 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
   const [genericSelection, setGenericSelection] = useState<GenericSelection | null>(null)
   const [skinOpen, setSkinOpen] = useState(false)
   const [genericOpen, setGenericOpen] = useState(false)
+  const [pendingCharm, setPendingCharm] = useState<{ id: string; name: string } | null>(null)
 
   const category = kind === 'all' || kind === 'raw' ? null : categoryForKind(kind)
   const skinKind = isSkinKind(kind)
@@ -236,7 +237,7 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
     onQuery: skinKind ? setSkinQuery : setCatQuery,
     queryPlaceholder: skinKind
       ? `search ${activeWeapon?.name ?? 'weapon'} skins`
-      : `search ${category ?? 'category'}`,
+      : kind === 'charms' ? 'search charms' : `search ${category ?? 'category'}`,
     showSearch: kind !== 'raw',
     searchDisabled: kind === 'raw',
     weapon: kind === 'skins'
@@ -274,6 +275,15 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
     }
     const item = filteredCategory.find((entry) => entry.def_index === String(card.id))
     if (!item || !category) return
+    if (kind === 'charms') {
+      // A charm has no item def_index, so carry it into the weapon editor.
+      setPendingCharm({ id: item.def_index, name: item.name })
+      setKind('skins')
+      setSkinQuery('')
+      setSkinSelection(null)
+      setGenericSelection(null)
+      return
+    }
     setGenericSelection({ kind, category, item })
     setGenericOpen(true)
   }
@@ -307,7 +317,7 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
     <>
       <CategoryBar
         label="Schema categories"
-        tabs={BROWSE_TABS}
+        tabs={browseTabs(game)}
         value={kind}
         onChange={(id) => { setKind(id as Kind); setSkinSelection(null); setGenericSelection(null) }}
         trailing={
@@ -367,6 +377,16 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
             <FilterSidebar state={filterState} />
 
             <section className="min-w-0 flex-1" aria-label="Catalog results">
+              {pendingCharm && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/[.055] px-3 py-2">
+                  <Gem className="size-3.5 text-primary" />
+                  <span className="text-[11px] text-foreground">Charm selected: <b className="font-medium">{pendingCharm.name}</b></span>
+                  <span className="text-[11px] text-muted-foreground">open a weapon to attach it</span>
+                  <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setPendingCharm(null)}>
+                    <X className="size-3.5" />Clear
+                  </Button>
+                </div>
+              )}
               <div className="results-toolbar">
                 <div className="min-w-0">
                   <div className="text-[11px] text-muted-foreground">
@@ -442,8 +462,9 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
 
       {skinSelection && (
         <SkinConfigurator
-          key={`${game}-${skinSelection.weaponId}-${skinSelection.paint}`}
+          key={`${game}-${skinSelection.weaponId}-${skinSelection.paint}-${pendingCharm?.id ?? ''}`}
           game={game}
+          initialKeychain={pendingCharm?.id}
           selection={skinSelection}
           open={skinOpen}
           onOpenChange={setSkinOpen}
@@ -477,7 +498,6 @@ function BrowseOverview({ weapons, counts, loading, onPick }: {
     { id: 'agents', label: 'Agents', count: counts.agents, hint: 'CT and T models' },
     { id: 'cases', label: 'Cases', count: counts.crates, hint: 'containers' },
     { id: 'keys', label: 'Keys', count: counts.keys, hint: 'case keys' },
-    { id: 'keychains', label: 'Keychains', count: counts.keychains, hint: 'charms · CS2' },
     { id: 'music', label: 'Music', count: counts.music_kits, hint: 'music kits' },
   ]
 
