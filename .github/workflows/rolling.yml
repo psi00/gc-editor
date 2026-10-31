@@ -1,11 +1,11 @@
 name: rolling release
 
-# republishes the same `rolling` pre-release on every push to master, so the
+# republishes the same `rolling` pre-release on every push to staging, so the
 # release link never changes but always points at the newest passing build.
 
 on:
   push:
-    branches: [master]
+    branches: [staging]
   workflow_dispatch:
 
 permissions:
