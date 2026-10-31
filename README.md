@@ -7,9 +7,9 @@ An inventory web editor for the CS:GO and CS2 game coordinators, with support fo
 
 ## Requirements
 - Node.js version 20+
-- For live editing, CS:GO legacy installed and [GT-610's csgo_gc fork](https://github.com/GT-610/csgo-gc)
-- For editing CS2 inventories, [programmer1o1's valve_gc](https://github.com/programmer1o1/valve_gc) installed
-- RCON enabled within `csgo_gc/config.txt` (CS:GO)
+- For CS:GO, [GT-610's csgo_gc fork](https://github.com/GT-610/csgo-gc) must be installed
+- For CS2, either [programmer1o1's valve_gc](https://github.com/programmer1o1/valve_gc) (offline) or [my fork of the project](https://github.com/psi00/valve_gc/tree/integration) (includes RCON support) must be installed
+- RCON enabled within `csgo_gc/config.txt` (CS:GO) or `game/csgo_gc/config.txt` (CS2)
 
 ## Games
 CS:GO and CS2 can be installed side by side. gc-editor detects both Steam folders automatically, with manual overrides in the Settings tab.
