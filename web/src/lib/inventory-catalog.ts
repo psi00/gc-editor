@@ -29,7 +29,7 @@ export type ResolvedInventory = {
 
 type SkinEntry = { name: string; rarity?: Rarity; case?: string | null; collection?: string | null }
 type CategoryEntry = { name: string; rarity?: Rarity; cat: string }
-type CategoryIndex = { byDef: Map<string, CategoryEntry>; music: Map<string, CategoryEntry> }
+type CategoryIndex = { byDef: Map<string, CategoryEntry>; music: Map<string, CategoryEntry>; keychains: Map<string, CategoryEntry> }
 
 const CATEGORY_ORDER = ['agents', 'collectibles', 'tools', 'crates', 'keys', 'patches', 'stickers', 'graffiti', 'keychains']
 
@@ -74,14 +74,16 @@ function loadCategories(game: GameId): Promise<CategoryIndex> {
     })).then((results) => {
       const byDef = new Map<string, CategoryEntry>()
       const music = new Map<string, CategoryEntry>()
+      const keychains = new Map<string, CategoryEntry>()
       for (const { cat, items } of results) {
         for (const item of items) {
           const entry: CategoryEntry = { name: String(item.name), rarity: item.rarity, cat }
           if (cat === 'music_kits') music.set(String(item.def_index), entry)
+          else if (cat === 'keychains') keychains.set(String(item.def_index), entry)
           else if (!byDef.has(String(item.def_index))) byDef.set(String(item.def_index), entry)
         }
       }
-      return { byDef, music }
+      return { byDef, music, keychains }
     })
     categoryCache.set(game, pending)
   }
@@ -106,7 +108,8 @@ async function searchExact(game: GameId, defIndex: number): Promise<CategoryEntr
 export function itemKey(item: InvItem) {
   const paint = item.attributes?.['6'] != null ? String(Math.trunc(Number(item.attributes['6']))) : ''
   const music = item.attributes?.['166'] ?? ''
-  return `${item.def_index}:${paint}:${music}`
+  const charm = item.attributes?.['299'] ?? ''
+  return `${item.def_index}:${paint}:${music}:${charm}`
 }
 
 export function itemPaint(item: InvItem) {
@@ -163,6 +166,24 @@ export async function resolveInventory(items: InvItem[], weapons: Weapon[], game
           isWeapon: false,
           isGlove: false,
           isMusic: true,
+        }
+      }
+    }
+
+    // Def 1355 is the CS2 charm item; attribute 299 names the keychain.
+    if (!entry && item.def_index === 1355) {
+      const keychainId = item.attributes?.['299'] ?? ''
+      const charm = keychainId ? categories.keychains.get(String(keychainId)) : null
+      if (charm) {
+        entry = {
+          name: charm.name,
+          image: categoryImage('keychains', keychainId, game),
+          rarity: charm.rarity,
+          category: 'keychains',
+          isSkin: false,
+          isWeapon: false,
+          isGlove: false,
+          isMusic: false,
         }
       }
     }

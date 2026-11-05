@@ -1,9 +1,10 @@
 # gc-editor agent instructions
 
-gc-editor is a local inventory workbench for the GT-610 fork of csgo_gc, for
-CS:GO and CS2. It has a zero-dependency Node HTTP backend in `server/` and a
-React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
-`npx tsc --noemit`, and `npm run build`; CI runs the same commands.
+gc-editor is a local inventory workbench for CS:GO and CS2. CS:GO uses the
+GT-610 `csgo_gc` fork; CS2 uses programmer1o1 `valve_gc` or the psi00 fork. It has
+a zero-dependency Node HTTP backend in `server/` and a React single-page app in
+`web/`. It has no lint. Requires Node 20+ (CI uses 22). Verify changes with
+`npm test`, `npx tsc --noemit`, and `npm run build`; CI runs the same commands.
 
 ## Run and verify
 
@@ -29,10 +30,11 @@ React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
   `npm run prefetch-images -- --only=skins` first. CS2 writes to `imgs/cs2/` and
   is fetched only by `prefetch-images-cs2`. Git ignores `data/*` and `imgs/*` by
   design.
-- For save tests, point the editor's `?path=` parameter at a **copy** of
-  `inventory.txt`, never the live file.
-- `npm test` uses Node's built-in test runner for VDF, inventory, and custom
-  stylesheet round-trips. No extra dependencies.
+- For save tests, point the Offline page's path field, or the API's `path`
+  parameter, at a **copy** of `inventory.txt`, never the live file.
+- `npm test` covers only VDF/inventory (`test/inventory.test.js`) and custom CSS
+  (`test/custom-css.test.js`). There are no UI tests; use `npx tsc --noemit` and
+  `npm run build` for UI changes.
 - `npm run screenshots` regenerates the README images in `media/` at 1440x1080.
   It drives a local Chrome or Edge over the DevTools pipe (set `CHROME_PATH` if
   detection fails), needs `npm run build` first, and starts `node server/index.js`
@@ -41,6 +43,10 @@ React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
 - Commit messages must follow Conventional Commits. `commitlint` runs from the
   husky `commit-msg` hook, which `npm install` sets up through the `prepare`
   script. Use prefixes such as `fix(rcon): ...` or `ci(release): ...`.
+- CI runs `npm test`, `npx tsc --noemit`, and `npm run build` on master and PRs,
+  plus `commitlint` on PRs. A `v*` tag must match the `package.json` version;
+  pushes to `staging` republish the `rolling` prerelease. `.gitattributes` keeps
+  `.husky/*` LF, because CRLF breaks the hook.
 
 ## Project layout
 
@@ -51,11 +57,13 @@ React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
 - `web/` is the only app and contains the Vite root, Tailwind config, and PostCSS
   config. `web/postcss.config.js` points Tailwind at `web/tailwind.config.js` so
   builds work from the repo root. Don't move these files.
-- `.references/` is a separate design-history app with its own `node_modules`.
-  Don't run it or run `npm install` in it. It is not the editor.
+- `scripts/` holds one-off Node ESM maintenance jobs (schema fetch/filter, case
+  mapping, image prefetch, favicon, screenshots); run them through the
+  `package.json` scripts.
 - `test/` holds Node's built-in tests. `media/` holds the README screenshots.
   `demo/inventory.txt` (gitignored) is a curated inventory the screenshot script
-  points the gallery at; it is local-only and not shipped.
+  points the gallery at; it is local-only and not shipped. `data/`, `imgs/`, and
+  `dist/` are generated; `data/*` and `imgs/*` are ignored by design.
 
 ## Frozen backend contract
 
@@ -64,8 +72,9 @@ React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
   `/api/settings` keeps the active game's top-level path fields and adds `game`,
   `games`, and `gameDirs`; schema and inventory responses add `game`, and those
   routes accept a `?game=` query parameter.
-- RCON replies are verbatim GC text starting with `OK ` or `ERR `. Transport
-  failures return `{ ok: false, raw: "ERR ..." }` with HTTP 200.
+- RCON replies are verbatim GC text starting with `OK ` or `ERR `. `/api/rcon`
+  returns HTTP 200 even on transport failure; `/api/rcon/give` returns 200 for a
+  GC `ERR` reply and 500 only when building or sending throws.
 - The server builds and quotes the `give_item` string for `POST /api/rcon/give`.
   It also runs `save_inventory` unless the request sets `autosave: false`.
 - Keep the CS:GO image URLs unchanged. Use `/imgs/skins/<weapon>_<paint>.png`,
@@ -73,7 +82,8 @@ React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
   uses the same shape with an `/imgs/cs2` prefix. A missing file produces a
   placeholder and is never fatal.
 - Schema category endpoints default to 500 rows. Send `?q=` for large sets.
-  Stickers have more than 11,000 rows, so never load them all.
+  CS:GO has about 6,700 stickers; CS2 has more than 11,000 plus `sticker_slabs`.
+  Never load a whole sticker set.
 - Always give music kits with `give_item 1314 music=<id>`. Get their art from
   `music_kits/<id>`.
 
@@ -93,6 +103,8 @@ React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
 - `inventory.txt` uses Valve KeyValues. The parser strips a BOM and tolerates
   non-ASCII. Each overwrite copies the current file to
   `inventory.txt.<timestamp>.bak` before the atomic rename.
+- Close the game before saving; the GC can overwrite the file from its in-memory
+  inventory.
 - When saving an `items` array, `serializeInventory` re-reads the existing file
   and merges the changes. Preserve unknown top-level sections such as
   `format_version` and `player_state`, plus per-item `equipped_state` and
@@ -183,8 +195,9 @@ React single-page app in `web/`. It has no lint. Verify changes with `npm test`,
 - `?safe=1` removes the link in `main.tsx` before the first render. It is the only
   way out of a layout-breaking theme, so keep it independent of custom CSS.
 - The `:root` tokens in `web/src/styles.css` are the public API; class names are
-  internal. Don't put literal colors in rules or components. Add a token to
-  `:root` and to `web/tailwind.config.js` instead.
+  internal. Add new colors as tokens in `:root` and `web/tailwind.config.js`;
+  don't add literals to new rules or components (some older rules still have
+  them).
 - Writes are atomic with a timestamped `.bak`, like `inventory.txt`. The size cap
   is `CUSTOM_CSS_LIMIT`.
 

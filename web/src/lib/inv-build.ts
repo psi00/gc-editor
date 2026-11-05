@@ -24,9 +24,12 @@ export function buildInventoryItems(give: GiveItem, existing: InvItem[]): InvIte
   if (give.music != null) attributes['166'] = String(Math.trunc(give.music))
   if (give.keychain != null) {
     attributes['299'] = String(Math.trunc(give.keychain))
-    attributes['300'] = '0.000000'
-    attributes['301'] = '0.000000'
-    attributes['302'] = '0.000000'
+    // A charm item (1355) only carries its keychain id; weapons also carry slot offsets.
+    if (give.def_index !== 1355) {
+      attributes['300'] = '0.000000'
+      attributes['301'] = '0.000000'
+      attributes['302'] = '0.000000'
+    }
   }
   give.stickers?.forEach((sticker, index) => {
     if (!sticker) return

@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react'
-import { Loader2, Plus, Save, X } from 'lucide-react'
-import { api, quoteName, store } from '../../lib/api'
+import { Gem, Loader2, Plus, Save, X } from 'lucide-react'
+import { api, store } from '../../lib/api'
 import { useReport } from '../../lib/report'
 import { rconHint } from '../../lib/rcon-hints'
 import type { GiveItem, GiveResponse } from '../../lib/app-types'
@@ -24,29 +24,23 @@ function countOf(text: string) {
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 100 ? parsed : null
 }
 
-function intOrUndefined(text: string) {
-  if (text.trim() === '') return undefined
-  const parsed = Number(text)
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined
-}
-
-export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChange, onAdd }: {
+export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChange, onAdd, onWeapon }: {
   game?: GameId
   selection: GenericSelection
   open: boolean
   onOpenChange: (open: boolean) => void
   /** When set, the item is staged into inventory.txt instead of sent over RCON. */
   onAdd?: (item: GiveItem) => void
+  /** Charms only: hand the selected charm to the weapon editor. */
+  onWeapon?: () => void
 }) {
-  const mode = selection.kind === 'music' ? 'music' : 'generic'
+  const mode = selection.kind === 'music' ? 'music' : selection.kind === 'charms' ? 'charm' : 'generic'
   const local = Boolean(onAdd)
   const profile = store.profile(game)
   const rconDisabled = !local && !profile.enabled
   const report = useReport()
 
   const [countText, setCountText] = useState('1')
-  const [name, setName] = useState('')
-  const [musicText, setMusicText] = useState(mode === 'music' ? String(selection.item.def_index) : '')
   const [autosave, setAutosave] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<GiveResponse | null>(null)
@@ -54,32 +48,30 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
 
   const count = countOf(countText)
   const countValid = count !== null
-  const musicId = intOrUndefined(musicText)
-  const musicValid = mode !== 'music' || (musicId !== undefined && musicId > 0)
-  const canSubmit = !submitting && !rconDisabled && countValid && musicValid
+  const canSubmit = !submitting && !rconDisabled && countValid
 
   const defIndex = Number(selection.item.def_index)
-  const displayDef = mode === 'music' ? 1314 : defIndex
+  // Def 1355 is the CS2 charm item; the keychain id lives in attribute 299.
+  const displayDef = mode === 'music' ? 1314 : mode === 'charm' ? 1355 : defIndex
 
   const preview = (() => {
     const parts = ['give_item', String(displayDef)]
     if (count && count !== 1) parts.push(String(count))
-    if (mode === 'music') {
-      if (musicValid) parts.push(`music=${musicId}`)
-    }
-    if (name.trim()) parts.push(`name=${quoteName(name.trim())}`)
+    if (mode === 'music') parts.push(`music=${defIndex}`)
+    if (mode === 'charm') parts.push(`keychain=${defIndex}`)
     return parts.join(' ')
   })()
 
   const submit = async () => {
     if (!canSubmit || count === null) return
     const item: GiveItem = mode === 'music'
-      ? { def_index: 1314, count, music: musicId, name: name.trim() || undefined }
-      : {
-        def_index: defIndex,
-        count,
-        name: name.trim() || undefined,
-      }
+      ? { def_index: 1314, count, music: defIndex }
+      : mode === 'charm'
+        ? { def_index: 1355, count, keychain: defIndex }
+        : {
+          def_index: defIndex,
+          count,
+        }
 
     if (onAdd) {
       onAdd(item)
@@ -99,7 +91,7 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
       report(
         {
           kind: 'give',
-          label: `${selection.item.name} · ${mode === 'music' ? `music def 1314` : `def ${defIndex}`}${count !== 1 ? ` ×${count}` : ''}`,
+          label: `${selection.item.name} · ${mode === 'music' ? 'music def 1314' : mode === 'charm' ? `charm ${defIndex}` : `def ${defIndex}`}${count !== 1 ? ` ×${count}` : ''}`,
           raw: response.saved ? `${response.raw}\nsave_inventory -> ${response.saved}` : response.raw,
           ok: response.ok,
           detail: response.command,
@@ -120,7 +112,7 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={undefined} className="max-w-3xl overflow-hidden p-0">
+      <DialogContent aria-describedby={undefined} className={cn('overflow-hidden p-0', mode === 'charm' ? 'max-w-4xl' : 'max-w-3xl')}>
         <div className="item-dialog-grid" style={{ '--accent': accent } as CSSProperties}>
           <div className="dialog-art dialog-art-sm">
             <div className="absolute left-4 top-4 z-10">
@@ -149,32 +141,8 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
                     aria-invalid={!countValid}
                   />
                 </label>
-                {mode === 'music' && (
-                  <label>
-                    <span className="field-label">Music kit id</span>
-                    <Input
-                      value={musicText}
-                      onChange={(event) => setMusicText(event.target.value)}
-                      inputMode="numeric"
-                      className={cn('h-9 text-xs', !musicValid && 'border-err-strong/70')}
-                      aria-invalid={!musicValid}
-                    />
-                  </label>
-                )}
               </div>
               {!countValid && <p className="text-[11px] text-err-soft">Quantity must be a whole number between 1 and 100.</p>}
-              {!musicValid && <p className="text-[11px] text-err-soft">Music kit id must be a positive whole number.</p>}
-
-              <label className="block">
-                <span className="field-label">Name tag (optional)</span>
-                <Input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="name tag text"
-                  maxLength={64}
-                  className="h-9 text-xs"
-                />
-              </label>
 
               {!local && (
                 <div>
@@ -211,16 +179,29 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
                 <p className="text-[11px] leading-relaxed text-warn-soft/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
               )}
 
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <Button onClick={submit} disabled={!canSubmit} className="flex-1">
+              <div className="flex items-center gap-2 pt-1">
+                <Button onClick={submit} disabled={!canSubmit} className={cn('flex-1', mode === 'charm' && 'px-2 text-xs')}>
                   {submitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
                   {submitting ? 'Sending…' : 'Add to inventory'}
                 </Button>
-                <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={submitting}>
+                {mode === 'charm' && onWeapon && (
+                  <Button
+                    onClick={() => { onOpenChange(false); onWeapon() }}
+                    disabled={submitting}
+                    className="flex-1 px-2 text-xs"
+                  >
+                    <Gem className="size-4" />Add to weapon
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={submitting} className="shrink-0">
                   <X className="size-4" />{result?.ok ? 'Done' : 'Cancel'}
                 </Button>
-                {!local && autosave && <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><Save className="size-3" />backup written by save_inventory</span>}
               </div>
+              {!local && autosave && (
+                <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Save className="size-3" />backup written by save_inventory
+                </p>
+              )}
             </div>
           </div>
         </div>

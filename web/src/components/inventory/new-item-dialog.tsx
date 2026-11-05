@@ -231,14 +231,6 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
     }
     const item = filteredCategory.find((entry) => entry.def_index === String(card.id))
     if (!item || !category) return
-    if (kind === 'charms') {
-      setPendingCharm({ id: item.def_index, name: item.name })
-      setKind('skins')
-      setQuery('')
-      setSkinSelection(null)
-      setGenericSelection(null)
-      return
-    }
     setGenericSelection({ kind, category, item })
     setGenericOpen(true)
   }
@@ -358,6 +350,13 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
             open={genericOpen}
             onOpenChange={setGenericOpen}
             onAdd={handleAdd}
+            onWeapon={genericSelection.kind === 'charms' ? () => {
+              setPendingCharm({ id: genericSelection.item.def_index, name: genericSelection.item.name })
+              setKind('skins')
+              setQuery('')
+              setSkinSelection(null)
+              setGenericSelection(null)
+            } : undefined}
           />
         )}
 

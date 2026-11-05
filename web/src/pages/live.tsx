@@ -275,15 +275,6 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
     }
     const item = filteredCategory.find((entry) => entry.def_index === String(card.id))
     if (!item || !category) return
-    if (kind === 'charms') {
-      // A charm has no item def_index, so carry it into the weapon editor.
-      setPendingCharm({ id: item.def_index, name: item.name })
-      setKind('skins')
-      setSkinQuery('')
-      setSkinSelection(null)
-      setGenericSelection(null)
-      return
-    }
     setGenericSelection({ kind, category, item })
     setGenericOpen(true)
   }
@@ -478,6 +469,13 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
           selection={genericSelection}
           open={genericOpen}
           onOpenChange={setGenericOpen}
+          onWeapon={genericSelection.kind === 'charms' ? () => {
+            setPendingCharm({ id: genericSelection.item.def_index, name: genericSelection.item.name })
+            setKind('skins')
+            setSkinQuery('')
+            setSkinSelection(null)
+            setGenericSelection(null)
+          } : undefined}
         />
       )}
     </>

@@ -78,7 +78,7 @@ function galleryKindOf(item: InvItem, resolved?: ResolvedInventory): GalleryKind
   if (resolved.category === 'agents') return 'agents'
   if (resolved.category === 'crates') return 'cases'
   if (resolved.category === 'keys') return 'keys'
-  if (resolved.category === 'keychains') return 'keychains'
+  if (resolved.category === 'keychains') return 'charms'
   return 'all'
 }
 

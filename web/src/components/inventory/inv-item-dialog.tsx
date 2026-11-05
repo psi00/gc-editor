@@ -38,6 +38,7 @@ export function InventoryItemDialog({
   const paint = itemPaint(item)
   const isSkin = paint != null && paint > 0
   const isWeapon = resolved?.isWeapon ?? false
+  const isCharmItem = item.def_index === 1355
 
   const [wearText, setWearText] = useState(item.attributes?.['8'] ?? '')
   const [seedText, setSeedText] = useState(item.attributes?.['7'] ?? '')
@@ -231,18 +232,20 @@ export function InventoryItemDialog({
                 </div>
               )}
 
-              <label className="block">
-                <span className="field-label">Name tag</span>
-                <Input
-                  value={item.attributes?.['111'] ?? item.custom_name ?? ''}
-                  onChange={(event) => onName(event.target.value)}
-                  placeholder="name tag text"
-                  className="h-9 text-xs"
-                  maxLength={64}
-                />
-              </label>
+              {isWeapon && (
+                <label className="block">
+                  <span className="field-label">Name tag</span>
+                  <Input
+                    value={item.attributes?.['111'] ?? item.custom_name ?? ''}
+                    onChange={(event) => onName(event.target.value)}
+                    placeholder="name tag text"
+                    className="h-9 text-xs"
+                    maxLength={64}
+                  />
+                </label>
+              )}
 
-              {!isGlove && (isSkin || (game === 'cs2' && isWeapon)) && (
+              {!isGlove && (isSkin || (game === 'cs2' && (isWeapon || isCharmItem))) && (
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="field-label mb-0 flex items-center gap-1.5">
@@ -251,7 +254,7 @@ export function InventoryItemDialog({
                     </span>
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       {isSkin && stickerCount > 0 && <span>{stickerCount} / {SLOTS}</span>}
-                      {isSkin && game === 'cs2' && isWeapon && <span className="flex items-center gap-1"><Gem className="size-3" />Charm</span>}
+                      {isSkin && game === 'cs2' && (isWeapon || isCharmItem) && <span className="flex items-center gap-1"><Gem className="size-3" />Charm</span>}
                     </div>
                   </div>
                   <div className={cn('sticker-row', isSkin && game === 'cs2' && isWeapon && 'sticker-row-charm')}>
@@ -269,7 +272,7 @@ export function InventoryItemDialog({
                           : <span className="slot-index">{index + 1}</span>}
                       </button>
                     ))}
-                    {game === 'cs2' && isWeapon && (
+                    {game === 'cs2' && (isWeapon || isCharmItem) && (
                       <button
                         className={cn('sticker-slot charm-slot', pickKeychain && 'active')}
                         onClick={() => { setPickKeychain((value) => !value); setPickSlot(null) }}
@@ -292,7 +295,7 @@ export function InventoryItemDialog({
                       onClose={() => setPickSlot(null)}
                     />
                   )}
-                  {game === 'cs2' && isWeapon && pickKeychain && (
+                  {game === 'cs2' && (isWeapon || isCharmItem) && pickKeychain && (
                     <KeychainPicker
                       value={keychain}
                       onPick={(id) => setKeychain(id)}
