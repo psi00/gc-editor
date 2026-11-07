@@ -7,7 +7,7 @@ import crypto from 'node:crypto'
 import { URL } from 'node:url'
 import { resolveAllPaths, ensureDirs, detectActiveGame } from './paths.js'
 import { GAMES, GAME_LABELS, normalizeGame } from './games.js'
-import { parseInventory, serializeInventory, validateInventory, writeInventoryAtomic, listInventoryBackups } from './inventory.js'
+import { parseInventory, serializeInventory, validateInventory, writeInventoryAtomic, listInventoryBackups, countInventoryBackup } from './inventory.js'
 import { readCustomCss, writeCustomCss, ensureCustomCss, CUSTOM_CSS_LIMIT } from './custom-css.js'
 import { rconCommand, buildGiveCommand } from './rcon.js'
 import { readRconConfig, updateRconConfig, publicRconConfig } from './rcon-config.js'
@@ -322,6 +322,19 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       send(res, 500, { game, path: file, backups: [], error: String(e.message) })
     }
+    return
+  }
+  if (p === '/api/inventory/backups/count' && req.method === 'GET') {
+    const game = gameFrom(u)
+    const file = u.searchParams.get('path') || pathsByGame[game].inventoryTxt
+    const names = String(u.searchParams.get('names') || '').split(',').filter(Boolean)
+    const available = new Map(listInventoryBackups(file, 1000).map((backup) => [backup.name, backup]))
+    const counts = {}
+    for (const name of names) {
+      const backup = available.get(name)
+      if (backup) counts[name] = countInventoryBackup(backup.file)
+    }
+    send(res, 200, { game, path: file, counts })
     return
   }
   if (p === '/api/inventory/save' && req.method === 'POST') {

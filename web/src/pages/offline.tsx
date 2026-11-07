@@ -24,15 +24,17 @@ import { FilterSidebar, MobileFilters, type FilterState } from '../components/sh
 const ROW_CAP = 500
 const INTEGER_ATTRS = new Set(['6', '7', '80'])
 
+type InventoryDiff = { lines: string[]; added: number; removed: number; changed: number }
 type Confirm =
   | { type: 'delete'; item: InvItem }
   | { type: 'bulk-delete'; items: InvItem[] }
-  | { type: 'empty-save' }
+  | { type: 'empty-save'; diff: InventoryDiff }
   | { type: 'reload' }
-  | { type: 'restore'; backup: BackupEntry }
+  | { type: 'save'; diff: InventoryDiff }
+  | { type: 'restore'; backup: BackupEntry; items: InvItem[]; default_equips: InvDefaultEquips; warnings: string[]; diff: InventoryDiff }
   | null
 type SortOrder = 'def-asc' | 'def-desc' | 'added-desc' | 'added-asc'
-type BackupEntry = { name: string; file: string; time: string; count: number | null }
+type BackupEntry = { name: string; file: string; time: string; size?: number | null; mtime?: string; count: number | null }
 
 /** Timestamped copies sit next to inventory.txt as `<name>.<stamp>.bak`. */
 function backupTime(time: string) {
@@ -66,6 +68,62 @@ function normalizeItem(item: InvItem): InvItem {
   return { ...item, attributes }
 }
 
+function stable(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${stable(entry)}`)
+    return `{${entries.join(',')}}`
+  }
+  const text = JSON.stringify(value)
+  return text === undefined ? String(value) : text
+}
+
+function diffInventory(before: InvItem[], after: InvItem[], beforeEquips: InvDefaultEquips, afterEquips: InvDefaultEquips): InventoryDiff {
+  const beforeById = new Map(before.map((item) => [item.id, item]))
+  const afterById = new Map(after.map((item) => [item.id, item]))
+  const lines: string[] = []
+  let added = 0
+  let removed = 0
+  let changed = 0
+  for (const [id, item] of afterById) {
+    const old = beforeById.get(id)
+    if (!old) {
+      added += 1
+      lines.push(`+ ${id}: def ${item.def_index}`)
+      continue
+    }
+    if (stable(old) !== stable(item)) {
+      changed += 1
+      const keys = new Set([...Object.keys(old), ...Object.keys(item)])
+      const fields = [...keys].filter((key) => stable((old as unknown as Record<string, unknown>)[key]) !== stable((item as unknown as Record<string, unknown>)[key]))
+      lines.push(`~ ${id}: ${fields.join(', ')}`)
+    }
+  }
+  for (const [id, item] of beforeById) {
+    if (!afterById.has(id)) {
+      removed += 1
+      lines.push(`- ${id}: def ${item.def_index}`)
+    }
+  }
+  if (stable(beforeEquips) !== stable(afterEquips)) lines.push('~ default_equips')
+  return { lines, added, removed, changed }
+}
+
+function DiffSummary({ diff }: { diff: InventoryDiff }) {
+  return (
+    <div className="log-surface max-h-40 overflow-y-auto text-[11px] leading-relaxed">
+      {diff.lines.length === 0 ? (
+        <div>No item changes; preserved sections are written unchanged.</div>
+      ) : (
+        diff.lines.slice(0, ROW_CAP).map((line, index) => <div key={`${line}-${index}`}>{line}</div>)
+      )}
+      {diff.lines.length > ROW_CAP && <div>+{diff.lines.length - ROW_CAP} more</div>}
+    </div>
+  )
+}
+
 type GalleryKind = Exclude<Kind, 'raw'>
 
 function galleryKindOf(item: InvItem, resolved?: ResolvedInventory): GalleryKind {
@@ -94,6 +152,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
   const [path, setPath] = useState('')
   const [items, setItems] = useState<InvItem[]>([])
   const [defaultEquips, setDefaultEquips] = useState<InvDefaultEquips>({})
+  const [baseline, setBaseline] = useState<{ items: InvItem[]; defaultEquips: InvDefaultEquips }>({ items: [], defaultEquips: {} })
   const [warnings, setWarnings] = useState<string[]>([])
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortOrder>('def-asc')
@@ -128,9 +187,12 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
       if (target.trim()) params.push(`path=${encodeURIComponent(target.trim())}`)
       const response: InvResponse = await api(`/api/inventory?${params.join('&')}`)
       if (response.error) throw new Error(String(response.error))
+      const nextItems = Array.isArray(response.items) ? response.items.map(normalizeItem) : []
+      const nextEquips = response.default_equips || {}
       setPath(response.path || '')
-      setItems(Array.isArray(response.items) ? response.items.map(normalizeItem) : [])
-      setDefaultEquips(response.default_equips || {})
+      setItems(nextItems)
+      setDefaultEquips(nextEquips)
+      setBaseline({ items: nextItems, defaultEquips: nextEquips })
       setWarnings(Array.isArray(response.warnings) ? response.warnings : [])
       setDirty(false)
       setSelectedId(null)
@@ -163,7 +225,19 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
       if (target) params.push(`path=${encodeURIComponent(target)}`)
       const response = await api(`/api/inventory/backups?${params.join('&')}`)
       if (response.error) throw new Error(String(response.error))
-      setBackups(Array.isArray(response.backups) ? response.backups : [])
+      const entries: BackupEntry[] = Array.isArray(response.backups) ? response.backups : []
+      setBackups(entries)
+      if (entries.length > 0) {
+        const countParams = [...params, `names=${encodeURIComponent(entries.map((backup) => backup.name).join(','))}`]
+        try {
+          const counted = await api(`/api/inventory/backups/count?${countParams.join('&')}`)
+          if (counted.counts) {
+            setBackups(entries.map((backup) => ({ ...backup, count: counted.counts[backup.name] ?? null })))
+          }
+        } catch {
+          /* counts stay unknown; the list remains usable */
+        }
+      }
     } catch (cause) {
       setBackups([])
       setBackupsError(cause instanceof Error ? cause.message : String(cause))
@@ -172,36 +246,50 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     }
   }, [path, gameSettings?.inventoryTxt, game])
 
-  // Stage a backup in the editor. Nothing is written until Save + backup, which
-  // first copies the current inventory.txt aside.
-  const restoreBackup = useCallback(async (backup: BackupEntry) => {
-    setConfirm(null)
-    setBackupsOpen(false)
-    setLoading(true)
-    setError('')
+  // Read a backup before asking, so the confirmation can show item-level changes.
+  const previewRestore = useCallback(async (backup: BackupEntry) => {
+    setBackupsLoading(true)
+    setBackupsError('')
     try {
       const response: InvResponse = await api(`/api/inventory?path=${encodeURIComponent(backup.file)}&game=${game}`)
       if (response.error) throw new Error(String(response.error))
-      setItems(Array.isArray(response.items) ? response.items.map(normalizeItem) : [])
-      setDefaultEquips(response.default_equips || {})
-      setWarnings(Array.isArray(response.warnings) ? response.warnings : [])
-      setDirty(true)
-      setSelectedId(null)
-      setSelecting(false)
-      setSelectedIds(new Set())
-      report(
-        { kind: 'inventory', label: `staged backup ${backup.name} · ${response.items?.length ?? 0} items`, ok: true, detail: 'not written until Save + backup' },
-        { title: 'Inventory loaded' },
-        'info',
-      )
+      const nextItems = Array.isArray(response.items) ? response.items.map(normalizeItem) : []
+      const nextEquips = response.default_equips || {}
+      setConfirm({
+        type: 'restore',
+        backup,
+        items: nextItems,
+        default_equips: nextEquips,
+        warnings: Array.isArray(response.warnings) ? response.warnings : [],
+        diff: diffInventory(items, nextItems, defaultEquips, nextEquips),
+      })
+      setBackupsOpen(false)
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
-      setError(message)
+      setBackupsError(message)
       report({ kind: 'error', label: `read backup ${backup.name}`, raw: message, ok: false }, { title: 'Could not read backup', body: message }, 'err')
     } finally {
-      setLoading(false)
+      setBackupsLoading(false)
     }
-  }, [report, game])
+  }, [defaultEquips, items, report, game])
+
+  // Stage the already-read backup. Nothing is written until Save + backup.
+  const restoreBackup = useCallback((restore: Extract<Confirm, { type: 'restore' }>) => {
+    setConfirm(null)
+    setBackupsOpen(false)
+    setItems(restore.items)
+    setDefaultEquips(restore.default_equips)
+    setWarnings(restore.warnings)
+    setDirty(true)
+    setSelectedId(null)
+    setSelecting(false)
+    setSelectedIds(new Set())
+    report(
+      { kind: 'inventory', label: `staged backup ${restore.backup.name} · ${restore.items.length} items`, ok: true, detail: 'not written until Save + backup' },
+      { title: 'Inventory loaded' },
+      'info',
+    )
+  }, [report])
 
   useEffect(() => { onDirtyChange?.(dirty) }, [dirty, onDirtyChange])
 
@@ -233,6 +321,11 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature, schema.weapons, schema.game, game])
+
+  const requestSave = useCallback(() => {
+    const diff = diffInventory(baseline.items, items, baseline.defaultEquips, defaultEquips)
+    setConfirm(items.length === 0 ? { type: 'empty-save', diff } : { type: 'save', diff })
+  }, [baseline, items, defaultEquips])
 
   const save = useCallback(async () => {
     setSaving(true)
@@ -481,7 +574,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
             {dirty && <span className="chip chip-warn">Unsaved</span>}
             <Button
               size="sm"
-              onClick={() => { if (items.length === 0) setConfirm({ type: 'empty-save' }); else void save() }}
+              onClick={requestSave}
               disabled={!dirty || loading || saving}
             >
               {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
@@ -669,7 +762,9 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
                   ? 'Discard unsaved edits and reload?'
                   : confirm?.type === 'restore'
                     ? 'Load this backup into the editor?'
-                    : 'Save an empty inventory?'}
+                    : confirm?.type === 'save'
+                      ? 'Write changes to inventory.txt?'
+                      : 'Save an empty inventory?'}
           </DialogTitle>
           <DialogDescription className="text-xs leading-relaxed text-muted-foreground">
             {confirm?.type === 'delete' && confirm.item ? (
@@ -693,9 +788,15 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
             ) : confirm?.type === 'restore' ? (
               <>
                 <span className="font-mono text-foreground/80">{confirm.backup.name}</span> (
-                {confirm.backup.count == null ? 'unknown item count' : `${confirm.backup.count} item${confirm.backup.count === 1 ? '' : 's'}`},{' '}
+                {confirm.items.length} item{confirm.items.length === 1 ? '' : 's'},{' '}
                 {backupTime(confirm.backup.time)}) replaces the items in the editor. The current file is
                 copied aside first.
+              </>
+            ) : confirm?.type === 'save' ? (
+              <>
+                {confirm.diff.added + confirm.diff.removed + confirm.diff.changed} item change
+                {confirm.diff.added + confirm.diff.removed + confirm.diff.changed === 1 ? '' : 's'} will be written.
+                The current file is copied aside first.
               </>
             ) : (
               <>
@@ -704,6 +805,9 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
               </>
             )}
           </DialogDescription>
+          {(confirm?.type === 'save' || confirm?.type === 'empty-save' || confirm?.type === 'restore') && (
+            <DiffSummary diff={confirm.diff} />
+          )}
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setConfirm(null)}>Cancel</Button>
             {confirm?.type === 'delete' && confirm.item && (
@@ -722,8 +826,13 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
               </Button>
             )}
             {confirm?.type === 'restore' && (
-              <Button onClick={() => void restoreBackup(confirm.backup)}>
+              <Button onClick={() => restoreBackup(confirm)}>
                 <History className="size-4" />Load backup
+              </Button>
+            )}
+            {confirm?.type === 'save' && (
+              <Button onClick={() => { setConfirm(null); void save() }}>
+                <Save className="size-4" />Save + backup
               </Button>
             )}
             {confirm?.type === 'empty-save' && (
@@ -753,12 +862,13 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-mono text-[11px] text-foreground" title={backup.name}>{backup.name}</p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {backup.count == null ? 'unreadable backup' : `${backup.count} item${backup.count === 1 ? '' : 's'}`}
+                      {backup.count == null ? 'item count unavailable' : `${backup.count} item${backup.count === 1 ? '' : 's'}`}
+                      {backup.size != null && <> · {Math.max(1, Math.round(backup.size / 1024))} KB</>}
                       {' · '}
                       <time dateTime={backup.time}>{backupTime(backup.time)}</time>
                     </p>
                   </div>
-                  <Button variant="secondary" size="sm" onClick={() => setConfirm({ type: 'restore', backup })}>
+                  <Button variant="secondary" size="sm" onClick={() => void previewRestore(backup)} disabled={backupsLoading}>
                     Restore
                   </Button>
                 </li>

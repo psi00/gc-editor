@@ -1,7 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { parseInventory, serializeInventory, validateInventory } from '../server/inventory.js'
+import fs, { readFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { parseInventory, serializeInventory, validateInventory, writeInventoryAtomic, listInventoryBackups, countInventoryBackup, MAX_BACKUPS } from '../server/inventory.js'
 import { parseVdf, serializeVdf } from '../server/vdf.js'
 
 const FIXTURE = `\uFEFF"format_version"\t\t"1"
@@ -173,5 +175,43 @@ test('serializeVdf escapes newlines and tabs', () => {
   const text = serializeVdf({ note: 'a\nb\tc' })
   assert.equal(text, '"note"\t\t"a\\nb\\tc"\n')
   assert.deepEqual(parseVdf(text), { note: 'a\nb\tc' })
+})
+
+test('saving rotates backups and lists counts lazily', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gc-editor-bak-'))
+  const file = path.join(dir, 'inventory.txt')
+  const content = '"items"\n{\n}\n'
+  try {
+    fs.writeFileSync(file, content, 'utf8')
+    for (let index = 0; index < 50; index += 1) {
+      writeInventoryAtomic(file, content)
+      await new Promise((resolve) => setTimeout(resolve, 2))
+    }
+    const backups = listInventoryBackups(file, 100)
+    assert.equal(backups.length, MAX_BACKUPS)
+    assert.equal(backups[0].count, null)
+    assert.ok(backups.every((backup) => backup.size === Buffer.byteLength(content)))
+    assert.equal(countInventoryBackup(backups[0].file), 0)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a failed rename leaves the original inventory intact', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gc-editor-crash-'))
+  const file = path.join(dir, 'inventory.txt')
+  try {
+    fs.writeFileSync(file, 'old inventory', 'utf8')
+    const rename = fs.renameSync
+    fs.renameSync = () => { throw new Error('simulated crash') }
+    try {
+      assert.throws(() => writeInventoryAtomic(file, 'new inventory'), /simulated crash/)
+    } finally {
+      fs.renameSync = rename
+    }
+    assert.equal(readFileSync(file, 'utf8'), 'old inventory')
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 })
 

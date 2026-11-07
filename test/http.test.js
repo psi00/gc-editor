@@ -177,6 +177,19 @@ test('save body path is ignored and an outside query path is refused', async () 
   assert.equal(fs.existsSync(pwned), false)
 })
 
+test('backup listing is stat-only and counts are on demand', async () => {
+  const list = await request('GET', '/api/inventory/backups?game=csgo')
+  assert.equal(list.status, 200)
+  const backup = list.json.backups[0]
+  assert.ok(backup)
+  assert.equal(backup.count, null)
+  assert.equal(typeof backup.size, 'number')
+
+  const counted = await request('GET', `/api/inventory/backups/count?game=csgo&names=${encodeURIComponent(backup.name)}`)
+  assert.equal(counted.status, 200)
+  assert.equal(counted.json.counts[backup.name], 0)
+})
+
 test('preview returns the exact give command without RCON', async () => {
   const item = {
     def_index: 7,

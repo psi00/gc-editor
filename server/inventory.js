@@ -102,22 +102,9 @@ export function validateInventory(inv) {
   return warnings
 }
 
-export function writeInventoryAtomic(filePath, content) {
-  const dir = path.dirname(filePath)
-  fs.mkdirSync(dir, { recursive: true })
-  // backup
-  if (fs.existsSync(filePath)) {
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const bak = `${filePath}.${stamp}.bak`
-    fs.copyFileSync(filePath, bak)
-  }
-  const tmp = `${filePath}.tmp`
-  fs.writeFileSync(tmp, content, 'utf8')
-  fs.renameSync(tmp, filePath)
-}
+export const MAX_BACKUPS = 20
 
-// Timestamped copies live next to inventory.txt as `<name>.<iso-timestamp>.bak`.
-export function listInventoryBackups(filePath, limit = 100) {
+function scanBackups(filePath) {
   if (!filePath) return []
   const dir = path.dirname(filePath)
   const prefix = `${path.basename(filePath)}.`
@@ -128,16 +115,56 @@ export function listInventoryBackups(filePath, limit = 100) {
     const file = path.join(dir, name)
     const match = name.slice(prefix.length, -'.bak'.length).match(/^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/)
     const stamped = match ? `${match[1]}T${match[2]}:${match[3]}:${match[4]}.${match[5]}Z` : ''
-    let time = Number.isNaN(Date.parse(stamped)) ? '' : stamped
-    let count = null
-    try {
-      if (!time) time = fs.statSync(file).mtime.toISOString()
-      count = parseInventory(fs.readFileSync(file, 'utf8')).items.length
-    } catch {
-      count = null
-    }
-    backups.push({ name, file, time, count })
+    let stat = null
+    try { stat = fs.statSync(file) } catch { /* vanished */ }
+    const mtime = stat ? stat.mtime.toISOString() : ''
+    const time = Number.isNaN(Date.parse(stamped)) ? mtime : stamped
+    backups.push({ name, file, time, size: stat ? stat.size : null, mtime })
   }
   backups.sort((a, b) => String(b.time).localeCompare(String(a.time)))
-  return backups.slice(0, limit)
+  return backups
+}
+
+/** Delete timestamped copies past the newest `keep` count. */
+export function pruneInventoryBackups(filePath, keep = MAX_BACKUPS) {
+  for (const backup of scanBackups(filePath).slice(Math.max(0, keep))) {
+    try { fs.unlinkSync(backup.file) } catch { /* best effort */ }
+  }
+}
+
+export function countInventoryBackup(filePath) {
+  try {
+    return parseInventory(fs.readFileSync(filePath, 'utf8')).items.length
+  } catch {
+    return null
+  }
+}
+
+export function writeInventoryAtomic(filePath, content) {
+  const dir = path.dirname(filePath)
+  fs.mkdirSync(dir, { recursive: true })
+  // backup
+  if (fs.existsSync(filePath)) {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const bak = `${filePath}.${stamp}.bak`
+    fs.copyFileSync(filePath, bak)
+    pruneInventoryBackups(filePath)
+  }
+  const tmp = `${filePath}.tmp`
+  const fd = fs.openSync(tmp, 'w')
+  try {
+    fs.writeFileSync(fd, content, 'utf8')
+    fs.fsyncSync(fd)
+  } finally {
+    fs.closeSync(fd)
+  }
+  fs.renameSync(tmp, filePath)
+}
+
+// Timestamped copies live next to inventory.txt as `<name>.<iso-timestamp>.bak`.
+// Counts are filled only on demand; listing stays a stat-only scan.
+export function listInventoryBackups(filePath, limit = 100) {
+  return scanBackups(filePath)
+    .slice(0, limit)
+    .map(({ name, file, time, size, mtime }) => ({ name, file, time, size, mtime, count: null }))
 }
