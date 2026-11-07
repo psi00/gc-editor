@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { parseInventory, serializeInventory, validateInventory } from '../server/inventory.js'
 import { parseVdf, serializeVdf } from '../server/vdf.js'
 
@@ -132,3 +133,45 @@ test('validateInventory reports duplicate slots, bad keys, and empty attributes'
   assert.ok(warnings.some((warning) => warning.includes('bad attribute key')))
   assert.ok(warnings.some((warning) => warning.includes('empty attribute')))
 })
+
+const roundtripFixture = readFileSync(new URL('./fixtures/inventory-roundtrip.txt', import.meta.url), 'utf8')
+const unknownFixture = readFileSync(new URL('./fixtures/inventory-unknown.txt', import.meta.url), 'utf8')
+const corruptFixture = readFileSync(new URL('./fixtures/inventory-corrupt.txt', import.meta.url), 'utf8')
+
+test('inventory fixture round-trips byte-identically', () => {
+  const inv = parseInventory(roundtripFixture)
+  assert.equal(serializeInventory(inv, roundtripFixture), roundtripFixture)
+})
+
+test('inventory fixture with unknown fields round-trips byte-identically', () => {
+  const inv = parseInventory(unknownFixture)
+  const serialized = serializeInventory(inv, unknownFixture)
+  assert.equal(serialized, unknownFixture)
+  const root = parseVdf(serialized)
+  assert.equal(root.format_version, '1')
+  assert.deepEqual(root.player_state, { level: '39', xp: '4999' })
+  assert.deepEqual(root.unknown_section, { keep: 'me' })
+  assert.equal(root.items['1'].future_field, 'keep me')
+})
+
+test('corrupt input reports skipped lines and a save warning', () => {
+  const inv = parseInventory(corruptFixture)
+  assert.ok(inv.skipped > 0)
+  const warnings = validateInventory(inv)
+  assert.ok(warnings.some((warning) => warning.includes('could not be parsed')))
+})
+
+test('an items save keeps unknown fields from the existing file', () => {
+  const inv = parseInventory(unknownFixture)
+  const stripped = inv.items.map(({ __raw, ...item }) => item)
+  const serialized = serializeInventory({ items: stripped, default_equips: inv.default_equips }, unknownFixture)
+  assert.equal(serialized, unknownFixture)
+  assert.equal(parseVdf(serialized).items['1'].future_field, 'keep me')
+})
+
+test('serializeVdf escapes newlines and tabs', () => {
+  const text = serializeVdf({ note: 'a\nb\tc' })
+  assert.equal(text, '"note"\t\t"a\\nb\\tc"\n')
+  assert.deepEqual(parseVdf(text), { note: 'a\nb\tc' })
+})
+

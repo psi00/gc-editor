@@ -1,0 +1,16 @@
+"items"
+{
+	"1"
+	{
+		"inventory"		"1"
+		"def_index"		"7"
+		"level"		"1"
+		"quality"		"4"
+		"flags"		"0"
+		"origin"		"24"
+		"in_use"		"0"
+		"rarity"		"6"
+	}
+}
+this line is junk
+"another"		"junk"

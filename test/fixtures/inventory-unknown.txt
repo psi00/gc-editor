@@ -1,0 +1,37 @@
+"format_version"		"1"
+"player_state"
+{
+	"level"		"39"
+	"xp"		"4999"
+}
+"items"
+{
+	"1"
+	{
+		"inventory"		"1"
+		"def_index"		"7"
+		"level"		"1"
+		"quality"		"4"
+		"flags"		"0"
+		"origin"		"24"
+		"in_use"		"0"
+		"rarity"		"6"
+		"future_field"		"keep me"
+		"attributes"
+		{
+			"6"		"44.000000"
+		}
+	}
+}
+"unknown_section"
+{
+	"keep"		"me"
+}
+"default_equips"
+{
+	"1"
+	{
+		"class_id"		"3"
+		"slot_id"		"15"
+	}
+}

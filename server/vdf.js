@@ -1,6 +1,6 @@
 // valve keyvalues parse/serialize, bom-safe, non-ascii safe.
 // supports the subset used by inventory.txt: "key" { ... } and "key" "value".
-// preserves roundtrip via sorted keys (BTreeMap parity with gt-610 editor).
+// preserves roundtrip by keeping key insertion order from the source.
 
 export function stripBom(s) {
   if (s.charCodeAt(0) === 0xfeff) return s.slice(1)
@@ -8,9 +8,40 @@ export function stripBom(s) {
 }
 
 export function parseVdf(text) {
+  return parseVdfDetailed(text).root
+}
+
+export function parseVdfDetailed(text) {
   const src = stripBom(text)
   let i = 0
   const n = src.length
+  const skippedLines = new Set()
+  const lineStarts = [0]
+  for (let at = 0; at < n; at++) if (src[at] === '\n') lineStarts.push(at + 1)
+
+  function lineAt(pos) {
+    let lo = 0
+    let hi = lineStarts.length - 1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      if (lineStarts[mid] <= pos) lo = mid + 1
+      else hi = mid - 1
+    }
+    return Math.max(0, hi)
+  }
+
+  function markLine(pos) {
+    skippedLines.add(lineAt(pos))
+  }
+
+  function markResidual(from) {
+    const first = lineAt(from)
+    const lines = src.slice(from).split('\n')
+    for (let offset = 0; offset < lines.length; offset++) {
+      const line = lines[offset].trim()
+      if (line && !line.startsWith('//')) skippedLines.add(first + offset)
+    }
+  }
 
   function skipWsAndComments() {
     while (i < n) {
@@ -64,7 +95,8 @@ export function parseVdf(text) {
       skipWsAndComments()
       if (i >= n) break
       if (src[i] === '}') { i++; break }
-      if (!peekQuoted()) { i++; continue }
+      if (!peekQuoted()) { skipWsAndComments(); markLine(i); i++; continue }
+      const keyPos = i
       const key = readQuoted()
       skipWsAndComments()
       if (src[i] === '{') {
@@ -73,6 +105,7 @@ export function parseVdf(text) {
       } else if (src[i] === '"') {
         obj[key] = readQuoted()
       } else if (src[i] === '}') {
+        markLine(keyPos)
         continue
       } else {
         // tolerate bare token
@@ -89,7 +122,8 @@ export function parseVdf(text) {
   while (i < n) {
     skipWsAndComments()
     if (i >= n) break
-    if (!peekQuoted()) break
+    if (!peekQuoted()) { markResidual(i); break }
+    const keyPos = i
     const key = readQuoted()
     skipWsAndComments()
     if (src[i] === '{') {
@@ -97,24 +131,26 @@ export function parseVdf(text) {
       root[key] = parseBlock()
     } else if (src[i] === '"') {
       root[key] = readQuoted()
-    } else break
+    } else {
+      markResidual(keyPos)
+      break
+    }
   }
-  return root
+  return { root, skipped: skippedLines.size }
 }
 
 function esc(s) {
-  return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  return String(s)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\t/g, '\\t')
 }
 
 export function serializeVdf(root) {
   const lines = []
   function writeObj(obj, indent) {
-    const keys = Object.keys(obj).sort((a, b) => {
-      const na = Number(a); const nb = Number(b)
-      if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb
-      return a < b ? -1 : a > b ? 1 : 0
-    })
-    for (const k of keys) {
+    for (const k of Object.keys(obj)) {
       const v = obj[k]
       const pad = '\t'.repeat(indent)
       if (v !== null && typeof v === 'object') {

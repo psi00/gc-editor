@@ -329,11 +329,18 @@ const server = http.createServer(async (req, res) => {
       let text
       if (typeof body.text === 'string') {
         // validate before write
-        parseInventory(body.text)
+        const parsed = parseInventory(body.text)
+        validateInventory(parsed)
         text = body.text
       } else {
         const existing = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
-        text = serializeInventory({ items: body.items || [], default_equips: body.default_equips || {} }, existing)
+        const inv = { items: body.items || [], default_equips: body.default_equips || {} }
+        validateInventory(inv)
+        text = serializeInventory(inv, existing)
+        const reparsed = parseInventory(text)
+        if (reparsed.items.length !== inv.items.length) {
+          throw new Error('serialized inventory does not re-parse to the same item count')
+        }
       }
       writeInventoryAtomic(file, text)
       send(res, 200, { ok: true, game, path: file })

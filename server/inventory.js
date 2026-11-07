@@ -1,11 +1,11 @@
 // inventory.txt model: parse/validate/serialize + backup + atomic write.
 import fs from 'node:fs'
 import path from 'node:path'
-import { parseVdf, serializeVdf } from './vdf.js'
+import { parseVdf, parseVdfDetailed, serializeVdf } from './vdf.js'
 
 export function parseInventory(text) {
-  if (!text || !text.trim()) return { items: [], default_equips: {} }
-  const root = parseVdf(text)
+  if (!text || !text.trim()) return { items: [], default_equips: {}, skipped: 0 }
+  const { root, skipped } = parseVdfDetailed(text)
   const itemsObj = root.items && typeof root.items === 'object' ? root.items : {}
   const equipsObj = root.default_equips && typeof root.default_equips === 'object' ? root.default_equips : {}
   const items = []
@@ -25,6 +25,7 @@ export function parseInventory(text) {
       custom_name: typeof o.custom_name === 'string' ? o.custom_name : undefined,
       attributes: o.attributes && typeof o.attributes === 'object' ? { ...o.attributes } : {},
       equipped_state: o.equipped_state && typeof o.equipped_state === 'object' ? { ...o.equipped_state } : {},
+      __raw: o,
     })
   }
   items.sort((a, b) => a.id - b.id)
@@ -32,7 +33,7 @@ export function parseInventory(text) {
   for (const [k, v] of Object.entries(equipsObj)) {
     default_equips[k] = { class_id: Number(v.class_id), slot_id: Number(v.slot_id) }
   }
-  return { items, default_equips }
+  return { items, default_equips, skipped }
 }
 
 function num(v, name) {
@@ -43,23 +44,31 @@ function num(v, name) {
 
 export function serializeInventory(inv, existingText = '') {
   // Preserve unknown top-level sections (format_version, player_state, ...)
-  // when rewriting items/default_equips.
+  // and unknown per-item fields when rewriting items/default_equips.
   const base = existingText ? parseVdf(existingText) : {}
+  const existingItems = base.items && typeof base.items === 'object' ? base.items : {}
   const itemsObj = {}
   for (const it of inv.items) {
-    const o = {
-      inventory: String(it.inventory),
-      def_index: String(it.def_index),
-      level: String(it.level ?? 1),
-      quality: String(it.quality ?? 3),
-      flags: String(it.flags ?? 0),
-      origin: String(it.origin ?? 24),
-    }
+    const rawItem = (it.__raw && typeof it.__raw === 'object')
+      ? it.__raw
+      : (existingItems[String(it.id)] && typeof existingItems[String(it.id)] === 'object' ? existingItems[String(it.id)] : null)
+    const o = rawItem ? { ...rawItem } : {}
+    o.inventory = String(it.inventory)
+    o.def_index = String(it.def_index)
+    o.level = String(it.level ?? 1)
+    o.quality = String(it.quality ?? 3)
+    o.flags = String(it.flags ?? 0)
+    o.origin = String(it.origin ?? 24)
     if (it.custom_name) o.custom_name = it.custom_name
+    else delete o.custom_name
     o.in_use = String(it.in_use ?? 0)
     o.rarity = String(it.rarity ?? 1)
     if (it.attributes && Object.keys(it.attributes).length) o.attributes = { ...it.attributes }
+    else if (rawItem && Object.prototype.hasOwnProperty.call(rawItem, 'attributes')) o.attributes = {}
+    else delete o.attributes
     if (it.equipped_state && Object.keys(it.equipped_state).length) o.equipped_state = { ...it.equipped_state }
+    else if (rawItem && Object.prototype.hasOwnProperty.call(rawItem, 'equipped_state')) o.equipped_state = {}
+    else delete o.equipped_state
     itemsObj[String(it.id)] = o
   }
   const root = { ...base, items: itemsObj }
@@ -77,6 +86,9 @@ export function serializeInventory(inv, existingText = '') {
 
 export function validateInventory(inv) {
   const warnings = []
+  if (inv.skipped > 0) {
+    warnings.push(`${inv.skipped} line${inv.skipped === 1 ? '' : 's'} could not be parsed; saving will discard them`)
+  }
   const seenInv = new Set()
   for (const it of inv.items) {
     if (seenInv.has(it.inventory)) warnings.push(`duplicate inventory slot ${it.inventory} (id ${it.id})`)
