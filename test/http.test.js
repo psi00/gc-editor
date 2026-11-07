@@ -7,6 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { buildGiveCommand } from '../server/rcon.js'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gc-editor-http-'))
@@ -174,6 +175,28 @@ test('save body path is ignored and an outside query path is refused', async () 
   })
   assert.equal(outside.status, 403)
   assert.equal(fs.existsSync(pwned), false)
+})
+
+test('preview returns the exact give command without RCON', async () => {
+  const item = {
+    def_index: 7,
+    count: 2,
+    level: 5,
+    quality: 4,
+    rarity: 6,
+    name: 'a "quote" \\ name',
+    paint: 44,
+    seed: 661,
+    wear: 0.15,
+    stattrak: 404,
+    stickers: [{ id: 37, wear: 0.1 }, null, { id: 38 }],
+  }
+  const response = await request('POST', '/api/rcon/preview', {
+    headers: trusted(),
+    body: { item },
+  })
+  assert.equal(response.status, 200)
+  assert.equal(response.json.command, buildGiveCommand(item))
 })
 
 test('rejects console commands outside the allow-list', async () => {

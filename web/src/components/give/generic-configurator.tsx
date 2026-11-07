@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Gem, Loader2, Plus, Save, X } from 'lucide-react'
 import { api, store } from '../../lib/api'
 import { useReport } from '../../lib/report'
@@ -46,6 +46,7 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<GiveResponse | null>(null)
   const [error, setError] = useState('')
+  const [serverPreview, setServerPreview] = useState('')
 
   const count = countOf(countText)
   const countValid = count !== null
@@ -56,25 +57,49 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
   const displayDef = mode === 'music' ? 1314 : mode === 'charm' ? 1355 : defIndex
   const rarity = rarityTier(selection.item.rarity?.name, selection.item.rarity?.id) ?? 1
 
-  const preview = (() => {
+  const item = useMemo<GiveItem>(() => {
+    const quantity = count ?? 1
+    return mode === 'music'
+      ? { def_index: 1314, count: quantity, rarity, music: defIndex }
+      : mode === 'charm'
+        ? { def_index: 1355, count: quantity, rarity, keychain: defIndex }
+        : { def_index: defIndex, count: quantity, rarity }
+  }, [mode, count, rarity, defIndex])
+
+  const optimisticPreview = useMemo(() => {
     const parts = ['give_item', String(displayDef)]
     if (count && count !== 1) parts.push(String(count))
     if (mode === 'music') parts.push(`music=${defIndex}`)
     if (mode === 'charm') parts.push(`keychain=${defIndex}`)
     return parts.join(' ')
-  })()
+  }, [displayDef, count, mode, defIndex])
+
+  useEffect(() => {
+    if (local || !open) {
+      setServerPreview('')
+      return
+    }
+    let cancelled = false
+    setServerPreview('')
+    const timer = setTimeout(() => {
+      api('/api/rcon/preview', { method: 'POST', body: JSON.stringify({ item }) })
+        .then((response) => {
+          if (!cancelled && typeof response.command === 'string') setServerPreview(response.command)
+        })
+        .catch(() => {
+          if (!cancelled) setServerPreview('')
+        })
+    }, 200)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [item, local, open])
+
+  const preview = serverPreview || optimisticPreview
 
   const submit = async () => {
     if (!canSubmit || count === null) return
-    const item: GiveItem = mode === 'music'
-      ? { def_index: 1314, count, rarity, music: defIndex }
-      : mode === 'charm'
-        ? { def_index: 1355, count, rarity, keychain: defIndex }
-        : {
-          def_index: defIndex,
-          count,
-          rarity,
-        }
 
     if (onAdd) {
       onAdd(item)

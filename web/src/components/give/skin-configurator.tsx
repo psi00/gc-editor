@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Gem, Loader2, Plus, Sticker, X } from 'lucide-react'
 import { api, quoteName, store } from '../../lib/api'
 import { useReport } from '../../lib/report'
@@ -60,6 +60,7 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<GiveResponse | null>(null)
   const [error, setError] = useState('')
+  const [serverPreview, setServerPreview] = useState('')
 
   const seed = Number(seedText)
   const seedValid = seedText.trim() !== '' && Number.isInteger(seed) && seed >= 0 && seed <= 999
@@ -71,7 +72,21 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
   const rarity = rarityTier(selection.rarity?.name, selection.rarity?.id) ?? 1
   const stickerCount = stickers.filter(Boolean).length
 
-  const preview = useMemo(() => {
+  const item = useMemo<GiveItem>(() => ({
+    def_index: selection.weaponId,
+    count: 1,
+    quality: !isGlove && souvenir ? 12 : undefined,
+    rarity,
+    paint: selection.paint,
+    wear: round4(wear),
+    seed: seedValid ? seed : 0,
+    stattrak: !isGlove && !souvenir && stattrak.trim() !== '' && stattrakValid ? Number(stattrak) : undefined,
+    name: customName.trim() || undefined,
+    keychain: isCs2 && !isGlove && keychain ? Number(keychain) : undefined,
+    stickers: isGlove ? [] : stickers.map((id) => (id ? { id: Number(id) } : null)),
+  }), [selection.weaponId, selection.paint, rarity, isGlove, souvenir, wear, seed, seedValid, stattrak, stattrakValid, customName, stickers, isCs2, keychain])
+
+  const optimisticPreview = useMemo(() => {
     const parts = ['give_item', String(selection.weaponId)]
     if (!isGlove && souvenir) parts.push('quality=12')
     parts.push(`paint=${selection.paint}`, `wear=${round4(wear)}`, `seed=${seedValid ? seed : 0}`)
@@ -82,6 +97,30 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
     return parts.join(' ')
   }, [selection, wear, seed, seedValid, stattrak, stattrakValid, customName, stickers, isGlove, souvenir, isCs2, keychain])
 
+  useEffect(() => {
+    if (local || !open) {
+      setServerPreview('')
+      return
+    }
+    let cancelled = false
+    setServerPreview('')
+    const timer = setTimeout(() => {
+      api('/api/rcon/preview', { method: 'POST', body: JSON.stringify({ item }) })
+        .then((response) => {
+          if (!cancelled && typeof response.command === 'string') setServerPreview(response.command)
+        })
+        .catch(() => {
+          if (!cancelled) setServerPreview('')
+        })
+    }, 200)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [item, local, open])
+
+  const preview = serverPreview || optimisticPreview
+
   const setWearValue = (value: number) => {
     const next = round4(Math.min(1, Math.max(0, value)))
     setWear(next)
@@ -90,19 +129,6 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
 
   const submit = async () => {
     if (!canSubmit) return
-    const item: GiveItem = {
-      def_index: selection.weaponId,
-      count: 1,
-      quality: !isGlove && souvenir ? 12 : undefined,
-      rarity,
-      paint: selection.paint,
-      wear: round4(wear),
-      seed,
-      stattrak: !isGlove && !souvenir && stattrak.trim() !== '' ? Number(stattrak) : undefined,
-      name: customName.trim() || undefined,
-      keychain: isCs2 && !isGlove && keychain ? Number(keychain) : undefined,
-      stickers: isGlove ? [] : stickers.map((id) => (id ? { id: Number(id) } : null)),
-    }
 
     if (onAdd) {
       onAdd(item)

@@ -252,6 +252,17 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  // --- command preview (same builder as give, no RCON) ---
+  if (p === '/api/rcon/preview' && req.method === 'POST') {
+    const body = await readBody(req)
+    try {
+      send(res, 200, { ok: true, command: buildGiveCommand(body.item || {}) })
+    } catch (e) {
+      send(res, 400, { ok: false, error: String(e.message) })
+    }
+    return
+  }
+
   // --- structured give_item (builds command server-side so quoting is consistent) ---
   if (p === '/api/rcon/give' && req.method === 'POST') {
     const body = await readBody(req)
