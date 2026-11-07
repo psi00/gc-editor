@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  CircleAlert, FileText, FolderOpen, Grid2X2, History, List, Loader2, Plus, RotateCcw, Save, SlidersHorizontal, SquareDashedMousePointer, Trash2, TriangleAlert, X,
+  CircleAlert, FileText, FolderOpen, Grid2X2, History, List, Loader2, Plus, RotateCcw, Save, SlidersHorizontal, SquareDashedMousePointer, Trash2, TriangleAlert, Undo2, X,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { useReport } from '../lib/report'
@@ -25,9 +25,8 @@ const ROW_CAP = 500
 const INTEGER_ATTRS = new Set(['6', '7', '80'])
 
 type InventoryDiff = { lines: string[]; added: number; removed: number; changed: number }
+type Removal = { items: { item: InvItem; index: number }[]; label: string }
 type Confirm =
-  | { type: 'delete'; item: InvItem }
-  | { type: 'bulk-delete'; items: InvItem[] }
   | { type: 'empty-save'; diff: InventoryDiff }
   | { type: 'reload' }
   | { type: 'save'; diff: InventoryDiff }
@@ -167,6 +166,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
   const [newItemOpen, setNewItemOpen] = useState(false)
   const [selecting, setSelecting] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [removal, setRemoval] = useState<Removal | null>(null)
   const [catalog, setCatalog] = useState<Map<string, ResolvedInventory>>(new Map())
   const [resolving, setResolving] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -198,6 +198,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
       setSelectedId(null)
       setSelecting(false)
       setSelectedIds(new Set())
+      setRemoval(null)
       report({
         kind: 'inventory',
         label: `inventory loaded · ${response.items?.length ?? 0} items`,
@@ -284,6 +285,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     setSelectedId(null)
     setSelecting(false)
     setSelectedIds(new Set())
+    setRemoval(null)
     report(
       { kind: 'inventory', label: `staged backup ${restore.backup.name} · ${restore.items.length} items`, ok: true, detail: 'not written until Save + backup' },
       { title: 'Inventory loaded' },
@@ -400,14 +402,16 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
   }, [report])
 
   const stageDelete = (item: InvItem) => {
+    const index = items.findIndex((entry) => entry.id === item.id)
+    if (index < 0) return
     setItems((current) => current.filter((entry) => entry.id !== item.id))
+    setRemoval({ items: [{ item, index }], label: `item ${item.id}` })
     setDirty(true)
     report(
       { kind: 'info', label: `staged removal of item ${item.id}`, detail: `def ${item.def_index} · not written until save` },
       { title: `Item ${item.id} removed from the editor` },
       'info',
     )
-    setConfirm(null)
   }
 
   const toggleSelect = (id: number) => {
@@ -426,15 +430,34 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
 
   const stageBulkDelete = (targets: InvItem[]) => {
     const ids = new Set(targets.map((item) => item.id))
+    const removed = items
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => ids.has(item.id))
     setItems((current) => current.filter((item) => !ids.has(item.id)))
+    setRemoval({ items: removed, label: `${ids.size} item${ids.size === 1 ? '' : 's'}` })
     setDirty(true)
     report(
       { kind: 'info', label: `staged removal of ${ids.size} items`, detail: 'not written until save' },
       { title: `${ids.size} items removed from the editor` },
       'info',
     )
-    setConfirm(null)
     exitSelection()
+  }
+
+  const undoRemoval = () => {
+    if (!removal) return
+    setItems((current) => {
+      const next = [...current]
+      for (const { item, index } of removal.items) next.splice(Math.min(index, next.length), 0, item)
+      return next
+    })
+    setDirty(true)
+    report(
+      { kind: 'info', label: `restored ${removal.label}`, detail: 'not written until save' },
+      { title: 'Removal undone' },
+      'info',
+    )
+    setRemoval(null)
   }
 
   const filtered = useMemo(() => {
@@ -611,6 +634,19 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
             <p className="mt-1.5 text-[11px] text-warn-soft/50">Warnings don't block saving.</p>
           </div>
         )}
+
+        {removal && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/[.055] px-3 py-2">
+            <span className="text-[11px] font-medium text-foreground">
+              Removed {removal.items.length} item{removal.items.length === 1 ? '' : 's'} from the editor
+            </span>
+            <Button variant="secondary" size="sm" onClick={undoRemoval}>
+              <Undo2 className="size-3.5" />Undo
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setRemoval(null)}>Dismiss</Button>
+            <span className="ml-auto text-[11px] text-muted-foreground">Save + backup keeps the removal.</span>
+          </div>
+        )}
       </div>
 
       {loading && items.length === 0 ? (
@@ -679,6 +715,15 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
 
           {selecting && (
             <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/[.055] px-3 py-2">
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={selectedIds.size === 0}
+                onClick={() => stageBulkDelete(items.filter((item) => selectedIds.has(item.id)))}
+              >
+                <Trash2 className="size-3.5" />Delete{selectedIds.size > 0 ? ` ${selectedIds.size}` : ''}
+              </Button>
+              <span className="mx-1 h-5 w-px bg-primary/25" aria-hidden />
               <span className="text-[11px] font-medium text-foreground">{selectedIds.size} selected</span>
               <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set(sorted.map((item) => item.id)))}>
                 Select all {sorted.length}
@@ -686,19 +731,9 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
               <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} disabled={selectedIds.size === 0}>
                 Clear
               </Button>
-              <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Button
-                  variant="danger"
-                  size="sm"
-                  disabled={selectedIds.size === 0}
-                  onClick={() => setConfirm({ type: 'bulk-delete', items: items.filter((item) => selectedIds.has(item.id)) })}
-                >
-                  <Trash2 className="size-3.5" />Delete{selectedIds.size > 0 ? ` ${selectedIds.size}` : ''}
-                </Button>
-                <Button variant="secondary" size="sm" onClick={exitSelection}>
-                  <X className="size-3.5" />Done
-                </Button>
-              </div>
+              <Button variant="secondary" size="sm" className="ml-auto" onClick={exitSelection}>
+                <X className="size-3.5" />Done
+              </Button>
             </div>
           )}
 
@@ -717,7 +752,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
                 }
               }}
               onSelect={(card) => toggleSelect(Number(card.id))}
-              selectable={selecting}
+              selectable={selecting && selectedIds.size > 0}
               selectedIds={selectedIds}
               actionLabel="Edit"
             />
@@ -738,7 +773,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
           onPosition={(value) => updatePosition(selected.id, value)}
           onDelete={() => {
             setItemOpen(false)
-            setConfirm({ type: 'delete', item: selected })
+            stageDelete(selected)
           }}
         />
       )}
@@ -754,33 +789,16 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
       <Dialog open={confirm !== null} onOpenChange={(open) => { if (!open) setConfirm(null) }}>
         <DialogContent className="max-w-md">
           <DialogTitle>
-            {confirm?.type === 'delete'
-              ? 'Remove item from the editor?'
-              : confirm?.type === 'bulk-delete'
-                ? `Remove ${confirm.items.length} item${confirm.items.length === 1 ? '' : 's'} from the editor?`
-                : confirm?.type === 'reload'
-                  ? 'Discard unsaved edits and reload?'
-                  : confirm?.type === 'restore'
-                    ? 'Load this backup into the editor?'
-                    : confirm?.type === 'save'
-                      ? 'Write changes to inventory.txt?'
-                      : 'Save an empty inventory?'}
+            {confirm?.type === 'reload'
+              ? 'Discard unsaved edits and reload?'
+              : confirm?.type === 'restore'
+                ? 'Load this backup into the editor?'
+                : confirm?.type === 'save'
+                  ? 'Write changes to inventory.txt?'
+                  : 'Save an empty inventory?'}
           </DialogTitle>
           <DialogDescription className="text-xs leading-relaxed text-muted-foreground">
-            {confirm?.type === 'delete' && confirm.item ? (
-              <>
-                Item <span className="font-mono text-foreground/80">{confirm.item.id}</span> (def{' '}
-                <span className="font-mono text-foreground/80">{confirm.item.def_index}</span>) will disappear from this view.
-              </>
-            ) : confirm?.type === 'bulk-delete' ? (
-              <>
-                {confirm.items.length} item{confirm.items.length === 1 ? '' : 's'} will disappear from this view:{' '}
-                <span className="font-mono text-foreground/80">
-                  {confirm.items.slice(0, 12).map((item) => item.id).join(', ')}
-                  {confirm.items.length > 12 ? ` +${confirm.items.length - 12} more` : ''}
-                </span>.
-              </>
-            ) : confirm?.type === 'reload' ? (
+            {confirm?.type === 'reload' ? (
               <>
                 Reloading reads <span className="font-mono">inventory.txt</span> again. Unsaved attribute and name edits
                 will be lost, and no backup is written for edits that were never saved.
@@ -810,16 +828,6 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
           )}
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setConfirm(null)}>Cancel</Button>
-            {confirm?.type === 'delete' && confirm.item && (
-              <Button variant="danger" onClick={() => stageDelete(confirm.item)}>
-                <Trash2 className="size-4" />Remove from editor
-              </Button>
-            )}
-            {confirm?.type === 'bulk-delete' && (
-              <Button variant="danger" onClick={() => stageBulkDelete(confirm.items)}>
-                <Trash2 className="size-4" />Remove {confirm.items.length} item{confirm.items.length === 1 ? '' : 's'}
-              </Button>
-            )}
             {confirm?.type === 'reload' && (
               <Button variant="danger" onClick={() => { setConfirm(null); void load(path) }}>
                 <RotateCcw className="size-4" />Discard and reload
