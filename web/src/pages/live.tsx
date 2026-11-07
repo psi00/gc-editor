@@ -550,7 +550,7 @@ function RawGivePanel({ game }: { game: GameId }) {
     try {
       const response: GiveResponse = await api('/api/rcon/give', {
         method: 'POST',
-        body: JSON.stringify({ host: profile.host, port: profile.port, password: profile.password, autosave, item: { def_index: defIndex, count } }),
+        body: JSON.stringify({ game, autosave, item: { def_index: defIndex, count } }),
       })
       setResult(response)
       report(

@@ -3,16 +3,60 @@
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import { URL } from 'node:url'
 import { resolveAllPaths, ensureDirs, detectActiveGame } from './paths.js'
 import { GAMES, GAME_LABELS, normalizeGame } from './games.js'
 import { parseInventory, serializeInventory, validateInventory, writeInventoryAtomic, listInventoryBackups } from './inventory.js'
 import { readCustomCss, writeCustomCss, ensureCustomCss, CUSTOM_CSS_LIMIT } from './custom-css.js'
 import { rconCommand, buildGiveCommand } from './rcon.js'
+import { readRconConfig, updateRconConfig, publicRconConfig } from './rcon-config.js'
 import { loadSchema, setGame, getGame, searchSkins, skinsForWeapon, listWeapons, listCategory, searchAll, categoryCounts, getSchema } from './schema.js'
 
 const PORT = Number(process.env.PORT || 5174)
 const HOST = '127.0.0.1'
+const SESSION_TOKEN = crypto.randomUUID()
+
+function envList(name) {
+  return String(process.env[name] || '')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+// Vite dev keeps its own port and proxies /api here, so both ports are trusted.
+const DEV_PORTS = [...new Set(['5173', String(PORT)])]
+const ALLOWED_HOSTS = new Set([
+  ...DEV_PORTS.flatMap((port) => [`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]),
+  ...envList('GC_ALLOWED_HOSTS'),
+])
+const ALLOWED_ORIGINS = new Set([
+  ...DEV_PORTS.flatMap((port) => [`http://127.0.0.1:${port}`, `http://localhost:${port}`, `http://[::1]:${port}`]),
+  ...envList('GC_ALLOWED_ORIGINS'),
+])
+const ALLOWED_CONSOLE_VERBS = new Set(['ping', 'status', 'give_item', 'save_inventory'])
+
+function sameToken(value) {
+  if (typeof value !== 'string') return false
+  const a = Buffer.from(value)
+  const b = Buffer.from(SESSION_TOKEN)
+  return a.length === b.length && crypto.timingSafeEqual(a, b)
+}
+
+/** Rejects state-changing requests that did not come from the local app. */
+function rejectedWrite(req) {
+  if (req.method === 'GET' || req.method === 'HEAD') return null
+  const host = String(req.headers.host || '').toLowerCase()
+  if (!ALLOWED_HOSTS.has(host)) return 'untrusted host'
+
+  let origin = String(req.headers.origin || '').toLowerCase()
+  if (!origin && req.headers.referer) {
+    try { origin = new URL(String(req.headers.referer)).origin.toLowerCase() } catch { origin = '' }
+  }
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return 'untrusted origin'
+  if (!sameToken(req.headers['x-gc-token'])) return 'invalid session token'
+  return null
+}
 
 const gameHints = {
   csgo: process.env.CSGO_LEGACY_DIR || null,
@@ -49,6 +93,22 @@ function gameFrom(u) {
   return normalizeGame(u.searchParams.get('game') || getGame())
 }
 
+/** Save target: the game's inventory.txt unless the request names a file inside a configured game dir. */
+function inventorySavePath(game, requested) {
+  const fallback = pathsByGame[game].inventoryTxt
+  if (!requested) return fallback
+  const candidate = path.resolve(String(requested))
+  for (const entry of Object.values(pathsByGame)) {
+    if (!entry.gameDir) continue
+    const root = path.resolve(entry.gameDir)
+    const rel = path.relative(root, candidate)
+    if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) return candidate
+  }
+  const error = new Error('save path is outside the configured game directories')
+  error.code = 'forbidden'
+  throw error
+}
+
 reloadGames()
 ensureCustomCss(paths.customCss)
 
@@ -80,6 +140,29 @@ function serveFile(res, file) {
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${HOST}:${PORT}`)
   const p = u.pathname
+
+  const denied = rejectedWrite(req)
+  if (denied) { send(res, 403, { ok: false, error: denied }); return }
+
+  // --- session / server-owned settings ---
+  if (p === '/api/session' && req.method === 'GET') {
+    send(res, 200, { token: SESSION_TOKEN })
+    return
+  }
+  if (p === '/api/rcon/config' && req.method === 'GET') {
+    send(res, 200, { ok: true, ...publicRconConfig(readRconConfig()) })
+    return
+  }
+  if (p === '/api/rcon/config' && req.method === 'POST') {
+    const body = await readBody(req)
+    try {
+      const config = updateRconConfig(body)
+      send(res, 200, { ok: true, ...publicRconConfig(config) })
+    } catch (e) {
+      send(res, 400, { ok: false, error: String(e.message) })
+    }
+    return
+  }
 
   // --- settings / paths ---
   if (p === '/api/settings' && req.method === 'GET') {
@@ -144,12 +227,21 @@ const server = http.createServer(async (req, res) => {
   // --- generic rcon passthrough ---
   if (p === '/api/rcon' && req.method === 'POST') {
     const body = await readBody(req)
+    const game = normalizeGame(body.game || getGame())
+    const config = readRconConfig()
+    const profile = config.profiles[game]
+    const command = String(body.command || 'ping')
+    const verb = command.trim().split(/\s+/)[0]
+    if (!config.freeFormConsole && !ALLOWED_CONSOLE_VERBS.has(verb)) {
+      send(res, 403, { ok: false, raw: `ERR command not allowed: ${verb || '(empty)'}` })
+      return
+    }
     try {
       const out = await rconCommand({
-        host: body.host || '127.0.0.1',
-        port: Number(body.port || 37016),
-        password: body.password ?? '',
-        command: String(body.command || 'ping'),
+        host: profile.host,
+        port: Number(profile.port),
+        password: profile.password,
+        command,
       })
       const trimmed = String(out).trim()
       // auto-save hook stays client-driven, but report ok/err plainly
@@ -163,12 +255,14 @@ const server = http.createServer(async (req, res) => {
   // --- structured give_item (builds command server-side so quoting is consistent) ---
   if (p === '/api/rcon/give' && req.method === 'POST') {
     const body = await readBody(req)
+    const game = normalizeGame(body.game || getGame())
+    const profile = readRconConfig().profiles[game]
     try {
       const command = buildGiveCommand(body.item || {})
       const raw = await rconCommand({
-        host: body.host || '127.0.0.1',
-        port: Number(body.port || 37016),
-        password: body.password ?? '',
+        host: profile.host,
+        port: Number(profile.port),
+        password: profile.password,
         command,
       })
       let result = { ok: String(raw).trim().startsWith('OK'), raw: String(raw).trim(), command }
@@ -176,9 +270,9 @@ const server = http.createServer(async (req, res) => {
       if (result.ok && body.autosave !== false) {
         try {
           const saved = await rconCommand({
-            host: body.host || '127.0.0.1',
-            port: Number(body.port || 37016),
-            password: body.password ?? '',
+            host: profile.host,
+            port: Number(profile.port),
+            password: profile.password,
             command: 'save_inventory',
           })
           result = { ...result, saved: String(saved).trim() }
@@ -222,7 +316,13 @@ const server = http.createServer(async (req, res) => {
   if (p === '/api/inventory/save' && req.method === 'POST') {
     const body = await readBody(req)
     const game = normalizeGame(body.game || getGame())
-    const file = body.path || pathsByGame[game].inventoryTxt
+    let file
+    try {
+      file = inventorySavePath(game, u.searchParams.get('path'))
+    } catch (e) {
+      send(res, 403, { ok: false, game, error: String(e.message) })
+      return
+    }
     if (!file) { send(res, 400, { error: 'no inventory path', game }); return }
     try {
       // accept either full items array or raw text

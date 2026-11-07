@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   Eraser, Eye, EyeOff, FolderOpen, Loader2, Palette, RefreshCw, Save, Wifi, WifiOff,
 } from 'lucide-react'
-import { api, store, type RconProfile } from '../lib/api'
+import { api, saveRconFreeForm, saveRconProfile, store, type RconProfile } from '../lib/api'
 import { useReport } from '../lib/report'
 import { rconHint } from '../lib/rcon-hints'
 import type { RconStatus, SettingsInfo } from '../lib/app-types'
@@ -28,7 +28,9 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
     cs2: { ...store.cs2 },
   }))
   const [showPassword, setShowPassword] = useState<Record<GameId, boolean>>({ csgo: false, cs2: false })
+  const [passwords, setPasswords] = useState<Record<GameId, string>>({ csgo: '', cs2: '' })
   const [dirs, setDirs] = useState<Record<GameId, string>>({ csgo: '', cs2: '' })
+  const [freeFormConsole, setFreeFormConsole] = useState(store.freeFormConsole)
   const [testing, setTesting] = useState<{ game: GameId; command: 'ping' | 'status' } | null>(null)
   const [savingGame, setSavingGame] = useState<GameId | null>(null)
   const [reply, setReply] = useState<Reply | null>(null)
@@ -45,7 +47,25 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
     const next = { ...profiles, [game]: { ...profiles[game], ...patch } }
     setProfiles(next)
     Object.assign(store.profile(game), next[game])
-    store.save(game)
+    void saveRconProfile(game, next[game]).catch((cause) => {
+      const message = cause instanceof Error ? cause.message : String(cause)
+      setError(message)
+      report({ kind: 'error', label: `save ${GAME_LABELS[game]} RCON profile`, raw: message, ok: false }, { title: 'Could not save RCON profile', body: message }, 'err')
+    })
+  }
+
+  const savePassword = async (game: GameId) => {
+    const password = passwords[game]
+    if (!password) return
+    try {
+      await saveRconProfile(game, {}, password)
+      setPasswords((current) => ({ ...current, [game]: '' }))
+      setProfiles((current) => ({ ...current, [game]: { ...store.profile(game) } }))
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause)
+      setError(message)
+      report({ kind: 'error', label: `save ${GAME_LABELS[game]} RCON password`, raw: message, ok: false }, { title: 'Could not save RCON password', body: message }, 'err')
+    }
   }
 
   const profileValid = (profile: RconProfile) => (
@@ -58,9 +78,10 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
     setError('')
     setReply(null)
     try {
+      if (passwords[game]) await savePassword(game)
       const response = await api('/api/rcon', {
         method: 'POST',
-        body: JSON.stringify({ host: profile.host, port: profile.port, password: profile.password, command }),
+        body: JSON.stringify({ game, command }),
       })
       setReply({ game, command, raw: String(response.raw ?? ''), ok: Boolean(response.ok) })
       report(
@@ -234,9 +255,11 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
                       <div className="flex items-center gap-2">
                         <Input
                           type={showPassword[game] ? 'text' : 'password'}
-                          value={profile.password}
-                          onChange={(event) => updateProfile(game, { password: event.target.value })}
-                          placeholder="rcon password"
+                          value={passwords[game]}
+                          onChange={(event) => setPasswords((current) => ({ ...current, [game]: event.target.value }))}
+                          onBlur={() => void savePassword(game)}
+                          onKeyDown={(event) => { if (event.key === 'Enter') void savePassword(game) }}
+                          placeholder={profile.hasPassword ? 'saved - type to replace' : 'rcon password'}
                           className="h-9 flex-1 text-xs"
                           autoComplete="new-password"
                           spellCheck={false}
@@ -274,6 +297,26 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
                 )
               })}
             </div>
+
+            <label className="mt-4 flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
+              <Checkbox
+                checked={freeFormConsole}
+                onCheckedChange={(checked) => {
+                  const next = checked === true
+                  setFreeFormConsole(next)
+                  void saveRconFreeForm(next).catch((cause) => {
+                    const message = cause instanceof Error ? cause.message : String(cause)
+                    setFreeFormConsole(!next)
+                    setError(message)
+                    report({ kind: 'error', label: 'save RCON console setting', raw: message, ok: false }, { title: 'Could not save RCON setting', body: message }, 'err')
+                  })
+                }}
+              />
+              Allow free-form console commands
+            </label>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+              Off by default. Only ping, status, give_item, and save_inventory are sent unless this is enabled.
+            </p>
 
             {error && <div className="log-surface err mt-3">{error}</div>}
           </section>

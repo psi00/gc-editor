@@ -238,9 +238,11 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     setSaving(true)
     setError('')
     try {
-      const response = await api('/api/inventory/save', {
+      const params = new URLSearchParams({ game })
+      if (path.trim()) params.set('path', path.trim())
+      const response = await api(`/api/inventory/save?${params.toString()}`, {
         method: 'POST',
-        body: JSON.stringify({ game, path, items, default_equips: defaultEquips }),
+        body: JSON.stringify({ game, items, default_equips: defaultEquips }),
       })
       if (!response.ok) throw new Error(String(response.error || 'save failed'))
       report(

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, store } from './lib/api'
+import { api, loadRconConfig, store } from './lib/api'
 import { useReport } from './lib/report'
 import { ActivityProvider } from './lib/activity'
 import { ToastProvider } from './components/common/status-toast'
@@ -42,6 +42,7 @@ function Shell() {
     csgo: { health: 'unknown', raw: '', at: null, checking: false },
     cs2: { health: 'unknown', raw: '', at: null, checking: false },
   })
+  const [rconConfigReady, setRconConfigReady] = useState(false)
 
   const reloadSettings = useCallback(async () => {
     try {
@@ -104,7 +105,7 @@ function Shell() {
     try {
       const response = await api('/api/rcon', {
         method: 'POST',
-        body: JSON.stringify({ host: profile.host, port: profile.port, password: profile.password, command: 'status' }),
+        body: JSON.stringify({ game: target, command: 'status' }),
       })
       const raw = String(response.raw ?? '')
       const health: RconHealth = /^ok/i.test(raw) ? 'ready' : /auth/i.test(raw) ? 'auth' : 'gc'
@@ -122,12 +123,26 @@ function Shell() {
     void reloadSettings()
   }, [reloadSettings])
 
+  // The password lives in the server config; migrate any older localStorage
+  // copy before the first status probe.
+  useEffect(() => {
+    let cancelled = false
+    void loadRconConfig()
+      .catch((cause) => {
+        const message = cause instanceof Error ? cause.message : String(cause)
+        report({ kind: 'error', label: 'load RCON config', raw: message, ok: false })
+      })
+      .finally(() => { if (!cancelled) setRconConfigReady(true) })
+    return () => { cancelled = true }
+  }, [report])
+
   // The game switch drives both the catalogue and the matching RCON profile,
   // in Live and Gallery alike.
   useEffect(() => {
+    if (!rconConfigReady) return
     void reloadSchema(galleryGame)
     void checkStatus(galleryGame)
-  }, [galleryGame, reloadSchema, checkStatus])
+  }, [galleryGame, reloadSchema, checkStatus, rconConfigReady])
 
   // `/` focuses the active page search field; never steals keys from inputs or dialogs.
   useEffect(() => {

@@ -85,7 +85,7 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
     try {
       const response: GiveResponse = await api('/api/rcon/give', {
         method: 'POST',
-        body: JSON.stringify({ host: profile.host, port: profile.port, password: profile.password, autosave, item }),
+        body: JSON.stringify({ game, autosave, item }),
       })
       setResult(response)
       report(
