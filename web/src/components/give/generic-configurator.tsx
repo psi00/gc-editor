@@ -4,6 +4,7 @@ import { api, store } from '../../lib/api'
 import { useReport } from '../../lib/report'
 import { rconHint } from '../../lib/rcon-hints'
 import type { GiveItem, GiveResponse } from '../../lib/app-types'
+import { rarityTier } from '../../../../shared/rarity.js'
 import type { CategoryItem, GameId, Kind } from '../../lib/catalog'
 import { GAME_LABELS, categoryImage, rarityLabel } from '../../lib/catalog'
 import { Button } from '../ui/button'
@@ -53,6 +54,7 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
   const defIndex = Number(selection.item.def_index)
   // Def 1355 is the CS2 charm item; the keychain id lives in attribute 299.
   const displayDef = mode === 'music' ? 1314 : mode === 'charm' ? 1355 : defIndex
+  const rarity = rarityTier(selection.item.rarity?.name, selection.item.rarity?.id) ?? 1
 
   const preview = (() => {
     const parts = ['give_item', String(displayDef)]
@@ -65,12 +67,13 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
   const submit = async () => {
     if (!canSubmit || count === null) return
     const item: GiveItem = mode === 'music'
-      ? { def_index: 1314, count, music: defIndex }
+      ? { def_index: 1314, count, rarity, music: defIndex }
       : mode === 'charm'
-        ? { def_index: 1355, count, keychain: defIndex }
+        ? { def_index: 1355, count, rarity, keychain: defIndex }
         : {
           def_index: defIndex,
           count,
+          rarity,
         }
 
     if (onAdd) {

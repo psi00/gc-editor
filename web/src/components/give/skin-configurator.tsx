@@ -4,6 +4,7 @@ import { api, quoteName, store } from '../../lib/api'
 import { useReport } from '../../lib/report'
 import { rconHint } from '../../lib/rcon-hints'
 import type { GiveItem, GiveResponse } from '../../lib/app-types'
+import { rarityTier } from '../../../../shared/rarity.js'
 import {
   GAME_LABELS, categoryImage, isGloveDef, rarityLabel, round4, skinImage, wearBand, wearBandId, WEAR_PRESETS,
   type GameId,
@@ -23,7 +24,7 @@ export type SkinSelection = {
   weaponName?: string
   paint: number
   name: string
-  rarity?: { name: string; color: string }
+  rarity?: { id?: string; name: string; color: string }
 }
 
 const SLOTS = 6
@@ -67,6 +68,7 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
   const canSubmit = !submitting && !rconDisabled && seedValid && stattrakValid && nameValid
 
   const accent = selection.rarity?.color || '#6d7486'
+  const rarity = rarityTier(selection.rarity?.name, selection.rarity?.id) ?? 1
   const stickerCount = stickers.filter(Boolean).length
 
   const preview = useMemo(() => {
@@ -92,6 +94,7 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
       def_index: selection.weaponId,
       count: 1,
       quality: !isGlove && souvenir ? 12 : undefined,
+      rarity,
       paint: selection.paint,
       wear: round4(wear),
       seed,
