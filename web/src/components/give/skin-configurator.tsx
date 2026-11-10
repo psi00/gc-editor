@@ -199,7 +199,7 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
                     min={0}
                     max={1}
                     step={0.0001}
-                    aria-label="Float value"
+                    thumbLabels={['Float']}
                     className="wear-slider flex-1"
                   />
                   <Input

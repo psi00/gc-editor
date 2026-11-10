@@ -263,6 +263,9 @@ button:disabled { cursor: not-allowed; }
   .sticker-row { grid-template-columns: repeat(3, minmax(0,1fr)); }
   .sticker-row-charm { grid-template-columns: repeat(4, minmax(0,1fr)); }
   .sticker-row-charm .charm-slot { grid-column: auto; }
+  /* the tab row scrolls without a scrollbar at this width; fade the cut edge so
+     it reads as "there is more" instead of as a clipped word */
+  .category-bar nav, .topbar .overflow-x-auto { -webkit-mask-image: linear-gradient(to right, black 88%, transparent); mask-image: linear-gradient(to right, black 88%, transparent); }
 }
 @media (max-width: 560px) {
   .page-shell { width: calc(100% - 24px); }
@@ -276,6 +279,9 @@ button:disabled { cursor: not-allowed; }
   .item-card-list .item-head { grid-column: 2; grid-row: 1; padding: 0; }
   .item-card-list .item-art { grid-column: 1; grid-row: 1; width: 56px; height: 42px; min-height: 0; aspect-ratio: auto; border: 0; }
   .toast { right: 16px; bottom: 16px; left: 16px; max-width: none; }
+  /* one row: the status pill keeps only its dot so the game switch fits */
+  .status-pill { padding: 0 8px; }
+  .status-label { display: none; }
 }
 
 @tailwind utilities;

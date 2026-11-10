@@ -123,7 +123,7 @@ export function Header({ mode, page, onMode, onPage, status, onOpenSettings, gam
                 aria-label={`RCON status: ${health.label}. Open settings`}
               >
                 <span className={cn('live-dot', health.dot)} />
-                <span>{status.checking ? 'checking rcon…' : health.label}</span>
+                <span className="status-label">{status.checking ? 'checking rcon…' : health.label}</span>
               </button>
             </TooltipTrigger>
             <TooltipContent>

@@ -45,7 +45,12 @@ export function ItemCard({
       className={cn('item-card', view === 'list' && 'item-card-list', selected && 'is-selected')}
       style={{ '--accent': accent } as CSSProperties}
     >
-      <button className="card-hit" onClick={onOpen} aria-label={label} />
+      <button
+        className="card-hit"
+        onClick={onOpen}
+        aria-label={label}
+        title={item.meta ? `${item.name} · ${item.meta}` : item.name}
+      />
 
       <div className="item-art">
         <SafeImage src={item.image} alt="" className="item-image" fallback={item.fallback} />
