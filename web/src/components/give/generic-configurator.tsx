@@ -67,14 +67,6 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
         : { def_index: defIndex, count: quantity, rarity }
   }, [mode, count, rarity, defIndex])
 
-  const optimisticPreview = useMemo(() => {
-    const parts = ['give_item', String(displayDef)]
-    if (count && count !== 1) parts.push(String(count))
-    if (mode === 'music') parts.push(`music=${defIndex}`)
-    if (mode === 'charm') parts.push(`keychain=${defIndex}`)
-    return parts.join(' ')
-  }, [displayDef, count, mode, defIndex])
-
   useEffect(() => {
     if (local || !open) {
       setServerPreview('')
@@ -97,7 +89,7 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
     }
   }, [item, local, open])
 
-  const preview = serverPreview || optimisticPreview
+  const preview = serverPreview
 
   const submit = async () => {
     if (!canSubmit || count === null) return

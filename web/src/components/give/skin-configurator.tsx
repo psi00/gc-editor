@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Gem, Loader2, Plus, Sticker, X } from 'lucide-react'
-import { api, quoteName, store } from '../../lib/api'
+import { api, store } from '../../lib/api'
 import { useReport } from '../../lib/report'
 import { rconHint } from '../../lib/rcon-hints'
 import type { GiveItem, GiveResponse } from '../../lib/app-types'
@@ -87,17 +87,6 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
     stickers: isGlove ? [] : stickers.map((id) => (id ? { id: Number(id) } : null)),
   }), [selection.weaponId, selection.paint, rarity, isGlove, souvenir, wear, seed, seedValid, stattrak, stattrakValid, customName, stickers, isCs2, keychain])
 
-  const optimisticPreview = useMemo(() => {
-    const parts = ['give_item', String(selection.weaponId)]
-    if (!isGlove && souvenir) parts.push('quality=12')
-    parts.push(`paint=${selection.paint}`, `wear=${round4(wear)}`, `seed=${seedValid ? seed : 0}`)
-    if (!isGlove && !souvenir && stattrak.trim() !== '' && stattrakValid) parts.push(`stattrak=${Number(stattrak)}`)
-    if (customName.trim()) parts.push(`name=${quoteName(customName.trim())}`)
-    if (isCs2 && keychain) parts.push(`keychain=${keychain}`)
-    if (!isGlove) stickers.forEach((id, index) => { if (id) parts.push(`sticker${index}=${id}`) })
-    return parts.join(' ')
-  }, [selection, wear, seed, seedValid, stattrak, stattrakValid, customName, stickers, isGlove, souvenir, isCs2, keychain])
-
   useEffect(() => {
     if (local || !open) {
       setServerPreview('')
@@ -120,7 +109,9 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
     }
   }, [item, local, open])
 
-  const preview = serverPreview || optimisticPreview
+  // one source of truth: the server builds this line, so the preview is never
+  // a second, differently-ordered guess at what will be sent
+  const preview = serverPreview
 
   const setWearValue = (value: number) => {
     const next = round4(Math.min(1, Math.max(0, value)))
