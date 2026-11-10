@@ -310,7 +310,7 @@ export function InventoryItemDialog({
                 <summary className="cursor-pointer text-[11px] text-muted-foreground transition hover:text-foreground">
                   Raw values
                 </summary>
-                <div className="mt-2 space-y-2 rounded-lg border border-white/[.06] bg-black/20 p-2.5">
+                <div className="mt-2 space-y-2 rounded-lg border border-edge/[.06] bg-well/20 p-2.5">
                   <label className="flex items-center gap-2">
                     <span className="w-16 shrink-0 font-mono text-[11px] text-muted-foreground">position</span>
                     <Input

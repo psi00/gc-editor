@@ -42,7 +42,7 @@ function SearchField({ state }: { state: FilterState }) {
         data-search-input
         disabled={state.searchDisabled}
       />
-      <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-white/10 px-1.5 py-0.5 text-[11px] text-muted-foreground">/</kbd>
+      <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-edge/10 px-1.5 py-0.5 text-[11px] text-muted-foreground">/</kbd>
     </div>
   )
 }
@@ -110,7 +110,7 @@ export function FilterControls({ state }: { state: FilterState }) {
                 onClick={() => state.onAgentTeam?.(team)}
                 aria-pressed={state.agentTeam === team}
                 className={cn(
-                  'rounded-md border border-white/[.065] bg-white/[.018] px-2 py-1.5 text-[11px] text-muted-foreground transition hover:text-foreground',
+                  'rounded-md border border-edge/[.065] bg-edge/[.018] px-2 py-1.5 text-[11px] text-muted-foreground transition hover:text-foreground',
                   state.agentTeam === team && 'border-primary/40 bg-primary/10 text-foreground',
                 )}
               >{label}</button>
@@ -121,7 +121,7 @@ export function FilterControls({ state }: { state: FilterState }) {
 
       <button
         onClick={state.onReset}
-        className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs text-muted-foreground transition hover:bg-white/[.04] hover:text-foreground"
+        className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs text-muted-foreground transition hover:bg-edge/[.04] hover:text-foreground"
       >
         <RotateCcw className="size-3.5" /> Reset filters
       </button>

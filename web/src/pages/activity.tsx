@@ -72,7 +72,7 @@ export function ActivityPage() {
     <main className="page-shell pb-16 pt-7">
       <div className="mb-6 flex flex-wrap items-center gap-4">
         <div className="stat"><strong className="num">{visible.length}</strong><span>entries</span></div>
-        <div className="h-8 w-px bg-white/[.07]" />
+        <div className="h-8 w-px bg-edge/[.07]" />
         <div className="stat"><strong className="num">{errors}</strong><span>failures</span></div>
         {hiddenCatalog > 0 && (
           <label className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">

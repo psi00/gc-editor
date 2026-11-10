@@ -713,7 +713,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
                     {SORTS.map((option) => <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <div className="flex shrink-0 rounded-lg border border-white/[.075] bg-white/[.035] p-0.5">
+                <div className="flex shrink-0 rounded-lg border border-edge/[.075] bg-edge/[.035] p-0.5">
                   <button onClick={() => setView('grid')} aria-label="Grid view" aria-pressed={view === 'grid'} className={cn('view-button', view === 'grid' && 'active')}><Grid2X2 /></button>
                   <button onClick={() => setView('list')} aria-label="List view" aria-pressed={view === 'list'} className={cn('view-button', view === 'list' && 'active')}><List /></button>
                 </div>
@@ -881,7 +881,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
           ) : (
             <ul className="mt-4 max-h-[320px] space-y-1 overflow-y-auto">
               {backups.map((backup) => (
-                <li key={backup.name} className="flex items-center gap-3 rounded-lg border border-white/[.06] bg-white/[.02] px-3 py-2">
+                <li key={backup.name} className="flex items-center gap-3 rounded-lg border border-edge/[.06] bg-edge/[.02] px-3 py-2">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-mono text-[11px] text-foreground" title={backup.name}>{backup.name}</p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">

@@ -244,7 +244,7 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-describedby={undefined} className="max-w-[1520px] overflow-hidden p-0">
         <div className="flex max-h-[88vh] min-h-0 flex-col">
-          <div className="border-b border-white/[.06] px-5 py-4 pr-14">
+          <div className="border-b border-edge/[.06] px-5 py-4 pr-14">
             <DialogTitle className="flex items-center gap-2 text-lg">
               <Plus className="size-4 text-primary" />Add item
             </DialogTitle>
@@ -254,7 +254,7 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
             </p>
           </div>
 
-          <nav className="no-scrollbar flex shrink-0 gap-0.5 overflow-x-auto border-b border-white/[.06] px-3 py-1.5" aria-label="New item categories">
+          <nav className="no-scrollbar flex shrink-0 gap-0.5 overflow-x-auto border-b border-edge/[.06] px-3 py-1.5" aria-label="New item categories">
             {browseTabs(game).map((tab) => (
               <button
                 key={tab.id}
@@ -299,7 +299,7 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
                       <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => setMobileFilters(true)}>
                         <SlidersHorizontal className="size-3.5" />Filters
                       </Button>
-                      <div className="hidden rounded-lg border border-white/[.075] bg-white/[.035] p-0.5 sm:flex">
+                      <div className="hidden rounded-lg border border-edge/[.075] bg-edge/[.035] p-0.5 sm:flex">
                         <button onClick={() => setView('grid')} aria-label="Grid view" aria-pressed={view === 'grid'} className={cn('view-button', view === 'grid' && 'active')}><Grid2X2 /></button>
                         <button onClick={() => setView('list')} aria-label="List view" aria-pressed={view === 'list'} className={cn('view-button', view === 'list' && 'active')}><List /></button>
                       </div>
@@ -331,7 +331,7 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
             )}
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-white/[.06] px-5 py-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-edge/[.06] px-5 py-3">
             <span className="text-[11px] text-muted-foreground">
               {added > 0
                 ? `${added} item${added === 1 ? '' : 's'} staged in the editor`
@@ -395,7 +395,7 @@ function CatalogOverview({ schema, onPick }: { schema: SchemaState; onPick: (kin
         <button
           key={row.id}
           onClick={() => onPick(row.id)}
-          className="flex flex-col items-start gap-1 rounded-xl border border-white/[.07] bg-card/75 p-4 text-left transition hover:border-white/20 hover:bg-card-hover"
+          className="flex flex-col items-start gap-1 rounded-xl border border-edge/[.07] bg-card/75 p-4 text-left transition hover:border-edge/20 hover:bg-card-hover"
         >
           <span className="text-sm font-medium text-foreground">{row.label}</span>
           <span className="num font-mono text-2xl leading-tight text-foreground/80">

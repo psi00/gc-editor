@@ -18,12 +18,16 @@ export default {
         // status + accent shades live in :root so a custom stylesheet can retheme them.
         err: { DEFAULT: 'hsl(var(--err))', soft: 'hsl(var(--err-soft))', strong: 'hsl(var(--err-strong))' },
         warn: { DEFAULT: 'hsl(var(--warn))', soft: 'hsl(var(--warn-soft))' },
+        // hairlines/fills (--edge) and wells/shadows (--well): the two literal
+        // families, so a custom theme can flip every frame at once
+        edge: 'hsl(var(--edge) / <alpha-value>)',
+        well: 'hsl(var(--well) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['Roboto', 'Segoe UI', 'system-ui', 'sans-serif'],
         mono: ['Roboto Mono', 'Consolas', 'SFMono-Regular', 'ui-monospace', 'monospace'],
       },
-      boxShadow: { glow: '0 0 32px rgba(35, 123, 255, .22)' },
+      boxShadow: { glow: '0 0 32px hsl(var(--primary) / .22)' },
     },
   },
   plugins: [],

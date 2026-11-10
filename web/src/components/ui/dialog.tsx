@@ -22,17 +22,17 @@ export const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => (
   <DialogPrimitive.Portal>
-    <DialogPrimitive.Overlay className="dialog-overlay fixed inset-0 z-50 bg-black/75 backdrop-blur-md" />
+    <DialogPrimitive.Overlay className="dialog-overlay fixed inset-0 z-50" />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'dialog-surface fixed left-1/2 top-1/2 z-50 grid max-h-[92vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-2xl border border-white/10 bg-card p-6 shadow-2xl outline-none',
+        'dialog-surface fixed left-1/2 top-1/2 z-50 grid max-h-[92vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-2xl border border-edge/10 bg-card p-6 shadow-2xl outline-none',
         className,
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 z-10 grid size-8 place-items-center rounded-lg border border-white/[.08] bg-black/20 text-muted-foreground transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+      <DialogPrimitive.Close className="absolute right-4 top-4 z-10 grid size-8 place-items-center rounded-lg border border-edge/[.08] bg-well/20 text-muted-foreground transition hover:bg-edge/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
         <X className="size-4" /><span className="sr-only">Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>

@@ -59,8 +59,8 @@ export function StickerPicker({ slot, value, onPick, onClear, onClose }: Sticker
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-medium text-muted-foreground">Sticker slot {slot + 1}</span>
         <div className="flex items-center gap-1">
-          {value && <button onClick={onClear} className="rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-white">clear</button>}
-          <button onClick={onClose} aria-label="Close sticker search" className="rounded p-1 text-muted-foreground hover:text-white"><X className="size-3.5" /></button>
+          {value && <button onClick={onClear} className="rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground">clear</button>}
+          <button onClick={onClose} aria-label="Close sticker search" className="rounded p-1 text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
         </div>
       </div>
 

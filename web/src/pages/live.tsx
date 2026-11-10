@@ -391,7 +391,7 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
                       <SlidersHorizontal className="size-3.5" />Filters
                       {activeFilters > 0 && <span className="filter-count">{activeFilters}</span>}
                     </Button>
-                    <div className="hidden rounded-lg border border-white/[.075] bg-white/[.035] p-0.5 sm:flex">
+                    <div className="hidden rounded-lg border border-edge/[.075] bg-edge/[.035] p-0.5 sm:flex">
                       <button onClick={() => setView('grid')} aria-label="Grid view" aria-pressed={view === 'grid'} className={cn('view-button', view === 'grid' && 'active')}><Grid2X2 /></button>
                       <button onClick={() => setView('list')} aria-label="List view" aria-pressed={view === 'list'} className={cn('view-button', view === 'list' && 'active')}><List /></button>
                     </div>
@@ -518,7 +518,7 @@ function BrowseOverview({ weapons, counts, loading, onPick }: {
           <button
             key={row.id}
             onClick={() => onPick(row.id)}
-            className="flex flex-col items-start gap-1 rounded-xl border border-white/[.07] bg-card/75 p-4 text-left transition hover:border-white/20 hover:bg-card-hover"
+            className="flex flex-col items-start gap-1 rounded-xl border border-edge/[.07] bg-card/75 p-4 text-left transition hover:border-edge/20 hover:bg-card-hover"
           >
             <span className="text-sm font-medium text-foreground">{row.label}</span>
             <span className="num font-mono text-2xl leading-tight text-foreground/80">
@@ -666,7 +666,7 @@ function RawGivePanel({ game }: { game: GameId }) {
         ) : (
           <ul className="space-y-1.5">
             {recent.map((entry) => (
-              <li key={entry.id} className="rounded-lg border border-white/[.06] bg-white/[.02] px-3 py-2">
+              <li key={entry.id} className="rounded-lg border border-edge/[.06] bg-edge/[.02] px-3 py-2">
                 <div className="flex items-baseline gap-2">
                   <time dateTime={entry.at} className="shrink-0 font-mono text-[11px] text-muted-foreground">{formatClock(entry.at)}</time>
                   <span className={cn('chip', entry.ok === false ? 'chip-err' : 'chip-ok')}>{entry.ok === false ? 'failed' : 'ok'}</span>

@@ -50,7 +50,7 @@ function NavTabs({ mode, page, onMode, onPage }: {
           <Icon className="size-3.5" />{label}
         </button>
       ))}
-      <span className="mx-1 h-4 w-px shrink-0 bg-white/10" aria-hidden />
+      <span className="mx-1 h-4 w-px shrink-0 bg-edge/10" aria-hidden />
       {PAGES.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
@@ -112,7 +112,7 @@ export function Header({ mode, page, onMode, onPage, status, onOpenSettings, gam
                   </button>
                 ))}
               </nav>
-              <span className="mx-1 h-4 w-px shrink-0 bg-white/10" aria-hidden />
+              <span className="mx-1 h-4 w-px shrink-0 bg-edge/10" aria-hidden />
             </>
           )}
           <Tooltip>
@@ -128,9 +128,9 @@ export function Header({ mode, page, onMode, onPage, status, onOpenSettings, gam
             </TooltipTrigger>
             <TooltipContent>
               <span className="block font-medium">{health.label}</span>
-              <span className="mt-1 block text-white/60">{health.hint}</span>
-              {status.raw && <span className="mt-1.5 block font-mono text-[11px] text-white/80">{status.raw}</span>}
-              <span className="mt-1 block text-[11px] text-white/40">click to open settings</span>
+              <span className="mt-1 block text-foreground/60">{health.hint}</span>
+              {status.raw && <span className="mt-1.5 block font-mono text-[11px] text-foreground/80">{status.raw}</span>}
+              <span className="mt-1 block text-[11px] text-foreground/40">click to open settings</span>
             </TooltipContent>
           </Tooltip>
         </div>

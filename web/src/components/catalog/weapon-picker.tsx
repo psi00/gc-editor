@@ -83,7 +83,7 @@ export function WeaponPicker({ weapons, value, onChange, label, disabled }: Weap
     <div ref={rootRef}>
       <button
         ref={triggerRef}
-        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-white/[.075] bg-white/[.035] px-3 text-left text-xs text-foreground transition hover:bg-white/[.06]"
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-edge/[.075] bg-edge/[.035] px-3 text-left text-xs text-foreground transition hover:bg-edge/[.06]"
         onClick={() => setOpen((current) => !current)}
         onKeyDown={(event) => { if (event.key === 'Escape' && open) { event.preventDefault(); close(true) } }}
         aria-expanded={open}

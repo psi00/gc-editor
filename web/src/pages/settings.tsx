@@ -216,7 +216,7 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
                     key={game}
                     className={cn(
                       'rounded-xl border p-3 transition',
-                      profile.enabled ? 'border-white/[.09] bg-white/[.02]' : 'border-white/[.05] bg-black/10 opacity-80',
+                      profile.enabled ? 'border-edge/[.09] bg-edge/[.02]' : 'border-edge/[.05] bg-well/10 opacity-80',
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -300,7 +300,7 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
                       <div className={cn('log-surface mt-3', (activeReply?.ok ?? shownStatus?.health === 'ready') ? 'ok' : 'err')}>
                         {activeReply ? `${activeReply.command} -> ${activeReply.raw}` : `status -> ${shownStatus?.raw}`}
                         {'\n'}
-                        <span className="text-white/45">{rconHint(activeReply?.raw ?? shownStatus?.raw ?? '')}</span>
+                        <span className="text-foreground/45">{rconHint(activeReply?.raw ?? shownStatus?.raw ?? '')}</span>
                       </div>
                     )}
                   </div>
@@ -348,7 +348,7 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
               spellCheck={false}
               aria-label="Custom CSS"
               placeholder="/* example - type your own */ :root { --primary: 280 90% 62%; }"
-              className="log-surface mt-3 min-h-64 w-full flex-1 resize-y placeholder:text-white/20"
+              className="log-surface mt-3 min-h-64 w-full flex-1 resize-y placeholder:text-foreground/20"
             />
 
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -395,7 +395,7 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
             switch chooses the catalogue and the matching RCON profile in Live and Inventory.
           </p>
 
-          <div className="mt-4 overflow-hidden rounded-xl border border-white/[.06]">
+          <div className="mt-4 overflow-hidden rounded-xl border border-edge/[.06]">
             <table className="data-table">
               <tbody>
                 {paths.map((entry) => (
