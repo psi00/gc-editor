@@ -58,7 +58,7 @@ export const KINDS: { id: Kind; label: string; category?: string }[] = [
   { id: 'raw', label: 'Manual' },
 ]
 
-/** The one tab set both Live and Gallery use, so positions never shift. */
+/** The one tab set both Live and Inventory use, so positions never shift. */
 export const BROWSE_TABS: { id: Exclude<Kind, 'raw'>; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'skins', label: 'Skins' },

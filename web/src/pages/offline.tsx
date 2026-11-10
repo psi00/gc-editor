@@ -396,7 +396,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     setDirty(true)
     report(
       { kind: 'inventory', label: `staged ${count} item${count === 1 ? '' : 's'} · def ${give.def_index}`, detail: 'not written until Save + backup' },
-      { title: `${count} item${count === 1 ? '' : 's'} added to the gallery` },
+      { title: `${count} item${count === 1 ? '' : 's'} added to the inventory` },
       'info',
     )
   }, [report])

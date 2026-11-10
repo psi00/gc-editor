@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Activity, FolderOpen, Images, Settings } from 'lucide-react'
+import { Activity, FileText, Images, Settings } from 'lucide-react'
 import type { GameId } from '../../lib/catalog'
 import { GAME_LABELS } from '../../lib/catalog'
 import type { RconStatus } from '../../lib/app-types'
@@ -16,7 +16,7 @@ const GAME_TABS: { id: GameId; label: string }[] = [
 
 const MODES: { id: Mode; label: string; icon: typeof Images }[] = [
   { id: 'live', label: 'Live', icon: Images },
-  { id: 'offline', label: 'Gallery', icon: FolderOpen },
+  { id: 'offline', label: 'Inventory', icon: FileText },
 ]
 
 const PAGES: { id: Exclude<Page, 'mode'>; label: string; icon: typeof Activity }[] = [

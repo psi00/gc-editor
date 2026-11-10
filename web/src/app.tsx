@@ -137,7 +137,7 @@ function Shell() {
   }, [report])
 
   // The game switch drives both the catalogue and the matching RCON profile,
-  // in Live and Gallery alike.
+  // in Live and Inventory alike.
   useEffect(() => {
     if (!rconConfigReady) return
     void reloadSchema(galleryGame)
@@ -262,9 +262,9 @@ function Shell() {
 
       <Dialog open={pendingNav !== null} onOpenChange={(open) => { if (!open) setPendingNav(null) }}>
         <DialogContent className="max-w-md">
-          <DialogTitle>Discard unsaved gallery edits?</DialogTitle>
+          <DialogTitle>Discard unsaved inventory edits?</DialogTitle>
           <DialogDescription className="text-xs leading-relaxed text-muted-foreground">
-            The gallery has edits that aren't in inventory.txt yet. Leaving now discards them, and
+            The inventory editor has edits that aren't in inventory.txt yet. Leaving now discards them, and
             unsaved edits aren't backed up.
           </DialogDescription>
           <div className="flex justify-end gap-2">

@@ -381,7 +381,7 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
           ))}
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
             Saving re-reads every path. Leave blank to auto-detect. Both installs can be active at once. The game
-            switch chooses the catalogue and the matching RCON profile in Live and Gallery.
+            switch chooses the catalogue and the matching RCON profile in Live and Inventory.
           </p>
 
           <div className="mt-4 overflow-hidden rounded-xl border border-white/[.06]">
