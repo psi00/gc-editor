@@ -10,7 +10,8 @@ import { rconHint } from '../lib/rcon-hints'
 import type { SchemaState, GiveResponse, RconHealth } from '../lib/app-types'
 import {
   browseTabs, GAME_LABELS, isSkinKind, categoryForKind, isGunWeapon, isKnifeWeapon, isGloveWeapon,
-  skinImage, categoryImage, agentMatchesTeam, skinSource, formatClock,
+  skinImage, categoryImage, agentMatchesTeam, skinSource, byRarity, hasMeaningfulRarity,
+  formatClock,
   type GameId, type Kind, type Skin, type CategoryItem, type Weapon,
 } from '../lib/catalog'
 import { CategoryBar } from '../components/shell/category-bar'
@@ -46,7 +47,8 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
   const [agentTeam, setAgentTeam] = useState<'ct' | 't'>('ct')
   const [skinQuery, setSkinQuery] = useState('')
   const [catQuery, setCatQuery] = useState('')
-  const [rarity, setRarity] = useState('')
+  const [rarity, setRarity] = useState<string[]>([])
+  const [collection, setCollection] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [visible, setVisible] = useState(PAGE_STEP)
   const [mobileFilters, setMobileFilters] = useState(false)
@@ -162,32 +164,53 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
       const name = item.rarity?.name
       if (name && !map.has(name)) map.set(name, item.rarity?.color || '#555')
     }
-    return [...map.entries()].map(([name, color]) => ({ name, color })).sort((a, b) => a.name.localeCompare(b.name))
+    return [...map.entries()].map(([name, color]) => ({ name, color })).sort(byRarity)
   }, [skinKind, activeSkins, activeCatItems])
 
   useEffect(() => {
     if (!dataReady) return
-    if (rarity && !rarities.some((entry) => entry.name === rarity)) setRarity('')
-  }, [dataReady, rarities, rarity])
+    setRarity((current) => {
+      const next = current.filter((name) => rarities.some((entry) => entry.name === name))
+      return next.length === current.length ? current : next
+    })
+  }, [dataReady, rarities])
 
-  useEffect(() => { setVisible(PAGE_STEP) }, [kind, weaponId, knifeId, gloveId, skinQuery, catQuery, rarity, agentTeam])
+  const showRarity = hasMeaningfulRarity(kind)
+  const activeRarity = showRarity ? rarity : []
+
+  // The catalogue has no standalone collection index: offer only the cases and
+  // collections the loaded skins actually reference.
+  const collections = useMemo(() => {
+    if (!skinKind) return []
+    const names = new Set<string>()
+    for (const skin of activeSkins) {
+      const source = skin.case ?? skin.collection
+      if (source) names.add(source)
+    }
+    return [...names].sort((a, b) => a.localeCompare(b))
+  }, [skinKind, activeSkins])
+
+  const activeCollection = collections.includes(collection) ? collection : ''
+
+  useEffect(() => { setVisible(PAGE_STEP) }, [kind, weaponId, knifeId, gloveId, skinQuery, catQuery, rarity, collection, agentTeam])
 
   const filteredSkins = useMemo(() => {
     const needle = skinQuery.trim().toLowerCase()
     return activeSkins.filter((skin) => {
       if (needle && !skin.name.toLowerCase().includes(needle)) return false
-      if (rarity && (skin.rarity?.name ?? 'unknown') !== rarity) return false
+      if (activeRarity.length > 0 && !activeRarity.includes(skin.rarity?.name ?? 'unknown')) return false
+      if (activeCollection && (skin.case ?? skin.collection ?? '') !== activeCollection) return false
       return true
     })
-  }, [activeSkins, skinQuery, rarity])
+  }, [activeSkins, skinQuery, activeRarity, activeCollection])
 
   const filteredCategory = useMemo(() => {
     return activeCatItems.filter((item) => {
       if (kind === 'agents' && !agentMatchesTeam(item.name, agentTeam)) return false
-      if (rarity && (item.rarity?.name ?? 'unknown') !== rarity) return false
+      if (activeRarity.length > 0 && !activeRarity.includes(item.rarity?.name ?? 'unknown')) return false
       return true
     })
-  }, [activeCatItems, kind, agentTeam, rarity])
+  }, [activeCatItems, kind, agentTeam, activeRarity])
 
   const categoryCapped = !skinKind && activeCatItems.length >= CATEGORY_LIMIT
   const total = skinKind ? filteredSkins.length : filteredCategory.length
@@ -223,7 +246,8 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
 
   const activeFilters =
     Number((skinKind ? skinQuery : catQuery).trim().length > 0) +
-    Number(rarity !== '') +
+    Number(activeRarity.length > 0) +
+    Number(activeCollection !== '') +
     // CT is the default team, not a filter the user chose
     Number(kind === 'agents' && agentTeam !== 'ct')
 
@@ -235,7 +259,8 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
   const resetFilters = () => {
     setSkinQuery('')
     setCatQuery('')
-    setRarity('')
+    setRarity([])
+    setCollection('')
     setAgentTeam('ct')
   }
 
@@ -254,9 +279,12 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
         : kind === 'gloves'
           ? { weapons: gloves, value: gloveId, onChange: setGloveId, label: 'Gloves' }
           : undefined,
-    rarities,
-    rarity,
+    rarities: showRarity ? rarities : [],
+    rarity: activeRarity,
     onRarity: setRarity,
+    collections: skinKind ? collections : undefined,
+    collection: activeCollection,
+    onCollection: skinKind ? setCollection : undefined,
     showQuality: false,
     agentTeam: kind === 'agents' ? agentTeam : undefined,
     onAgentTeam: kind === 'agents' ? setAgentTeam : undefined,

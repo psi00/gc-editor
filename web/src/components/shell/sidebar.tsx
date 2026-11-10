@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react'
-import { ArrowRight, RotateCcw, Search, SlidersHorizontal } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { ArrowRight, ChevronDown, RotateCcw, Search, SlidersHorizontal } from 'lucide-react'
 import { type Quality, type Weapon, rarityLabel } from '../../lib/catalog'
 import { Input } from '../ui/input'
+import { Checkbox } from '../ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
@@ -16,8 +17,13 @@ export type FilterState = {
   searchDisabled?: boolean
   weapon?: { weapons: Weapon[]; value: number; onChange: (defIndex: number) => void; label: string }
   rarities: { name: string; color: string }[]
-  rarity: string
-  onRarity: (value: string) => void
+  /** Selected rarity names. Empty means every rarity. */
+  rarity: string[]
+  onRarity: (value: string[]) => void
+  /** Case or collection names available for the current category. */
+  collections?: string[]
+  collection?: string
+  onCollection?: (value: string) => void
   showQuality: boolean
   quality?: Quality
   onQuality?: (value: Quality) => void
@@ -47,22 +53,67 @@ function SearchField({ state }: { state: FilterState }) {
   )
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** Collapsible filter block, mirroring the CSFloat panel: title row + chevron. */
+function Section({ title, children, count, defaultOpen = true }: {
+  title: string
+  children: ReactNode
+  count?: number
+  defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <section className="filter-section">
-      <div className="filter-heading"><h3>{title}</h3></div>
-      {children}
+      <button
+        type="button"
+        className="filter-toggle"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+      >
+        <span className="filter-title">{title}</span>
+        <span className="filter-toggle-meta">
+          {count ? <span className="filter-count">{count}</span> : null}
+          <ChevronDown className={cn('filter-chevron', !open && 'closed')} aria-hidden />
+        </span>
+      </button>
+      {open && <div className="filter-body">{children}</div>}
     </section>
+  )
+}
+
+function RarityPicker({ state }: { state: FilterState }) {
+  const selected = new Set(state.rarity)
+  return (
+    <div className="filter-options">
+      {state.rarities.map((entry) => {
+        const checked = selected.has(entry.name)
+        return (
+          <label key={entry.name} className="filter-option" data-checked={checked}>
+            <Checkbox
+              checked={checked}
+              aria-label={rarityLabel(entry.name)}
+              onCheckedChange={(value) => {
+                const next = new Set(state.rarity)
+                if (value === true) next.add(entry.name)
+                else next.delete(entry.name)
+                state.onRarity([...next])
+              }}
+            />
+            <span className="filter-swatch" style={{ background: entry.color }} aria-hidden />
+            <span className="truncate">{rarityLabel(entry.name)}</span>
+          </label>
+        )
+      })}
+    </div>
   )
 }
 
 export function FilterControls({ state }: { state: FilterState }) {
   return (
-    <div className="space-y-5">
+    <div className="filter-controls">
       {state.showSearch && <SearchField state={state} />}
 
       {state.weapon && (
-        <Section title="Weapon">
+        <Section title={state.weapon.label}>
           <WeaponPicker
             weapons={state.weapon.weapons}
             value={state.weapon.value}
@@ -74,13 +125,24 @@ export function FilterControls({ state }: { state: FilterState }) {
       )}
 
       {state.rarities.length > 0 && (
-        <Section title="Rarity">
-          <Select value={state.rarity || 'all'} onValueChange={(value) => state.onRarity(value === 'all' ? '' : value)}>
-            <SelectTrigger className="w-full" aria-label="Filter by rarity"><SelectValue placeholder="All rarities" /></SelectTrigger>
+        <Section title="Rarity" count={state.rarity.length || undefined}>
+          <RarityPicker state={state} />
+        </Section>
+      )}
+
+      {state.collections && state.collections.length > 0 && state.onCollection && (
+        <Section title="Collection" count={state.collection ? 1 : undefined}>
+          <Select
+            value={state.collection || 'any'}
+            onValueChange={(value) => state.onCollection?.(value === 'any' ? '' : value)}
+          >
+            <SelectTrigger className="w-full" aria-label="Filter by collection">
+              <SelectValue placeholder="Any collection" />
+            </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All rarities</SelectItem>
-              {state.rarities.map((rarity) => (
-                <SelectItem key={rarity.name} value={rarity.name}>{rarityLabel(rarity.name)}</SelectItem>
+              <SelectItem value="any">Any collection</SelectItem>
+              {state.collections.map((name) => (
+                <SelectItem key={name} value={name}>{name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -119,10 +181,7 @@ export function FilterControls({ state }: { state: FilterState }) {
         </Section>
       )}
 
-      <button
-        onClick={state.onReset}
-        className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs text-muted-foreground transition hover:bg-edge/[.04] hover:text-foreground"
-      >
+      <button onClick={state.onReset} className="filter-reset">
         <RotateCcw className="size-3.5" /> Reset filters
       </button>
     </div>
@@ -132,7 +191,7 @@ export function FilterControls({ state }: { state: FilterState }) {
 export function FilterSidebar({ state }: { state: FilterState }) {
   return (
     <aside className="filter-sidebar" aria-label="Catalog filters">
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium">
           <SlidersHorizontal className="size-4 text-primary" />Filters
           {state.activeFilters > 0 && <span className="filter-count">{state.activeFilters}</span>}

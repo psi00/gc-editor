@@ -111,6 +111,15 @@ export function isSkinKind(kind: Kind) {
   return kind === 'skins' || kind === 'knives' || kind === 'gloves'
 }
 
+/**
+ * Rarity only narrows a category when its items span real grades. Knives are
+ * all Covert, gloves all Extraordinary, music kits High Grade, keys have none,
+ * and cases only carry a base floor, so the filter would be a no-op there.
+ */
+export function hasMeaningfulRarity(kind: Kind) {
+  return kind === 'skins' || kind === 'stickers' || kind === 'agents' || kind === 'charms'
+}
+
 export function categoryForKind(kind: Kind): string | null {
   return KINDS.find((k) => k.id === kind)?.category ?? null
 }
@@ -149,6 +158,23 @@ const RARITY_LABELS: Record<string, string> = {
 export function rarityLabel(name?: string | null) {
   if (!name) return undefined
   return RARITY_LABELS[name] ?? name
+}
+
+// Canonical grade order for filter lists: weapon grades first, then the floors
+// other categories use (music kits, agents, knives, gloves).
+const RARITY_ORDER = [
+  'Consumer Grade', 'Industrial Grade', 'Mil-Spec Grade', 'Restricted', 'Classified', 'Covert', 'Contraband',
+  'Base Grade', 'High Grade', 'Remarkable', 'Exotic', 'Extraordinary',
+  'Distinguished', 'Exceptional', 'Superior', 'Master',
+]
+
+export function rarityRank(name?: string | null) {
+  const index = name ? RARITY_ORDER.indexOf(name) : -1
+  return index < 0 ? RARITY_ORDER.length : index
+}
+
+export function byRarity(a: { name: string }, b: { name: string }) {
+  return rarityRank(a.name) - rarityRank(b.name) || a.name.localeCompare(b.name)
 }
 
 export const WEAR_PRESETS = [

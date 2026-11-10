@@ -16,7 +16,7 @@ import { InventoryItemDialog } from '../components/inventory/inv-item-dialog'
 import { NewItemDialog } from '../components/inventory/new-item-dialog'
 import { itemKey, itemNameTag, resolveInventory, type ResolvedInventory } from '../lib/inventory-catalog'
 import { buildInventoryItems } from '../lib/inv-build'
-import { browseTabs, isKnifeDef, skinSource, type GameId, type Kind, type Quality } from '../lib/catalog'
+import { browseTabs, isKnifeDef, skinSource, byRarity, hasMeaningfulRarity, type GameId, type Kind, type Quality } from '../lib/catalog'
 import { cn } from '../lib/utils'
 import { CategoryBar } from '../components/shell/category-bar'
 import { FilterSidebar, MobileFilters, type FilterState } from '../components/shell/sidebar'
@@ -156,7 +156,8 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortOrder>('def-asc')
   const [kind, setKind] = useState<GalleryKind>('all')
-  const [rarity, setRarity] = useState('')
+  const [rarity, setRarity] = useState<string[]>([])
+  const [collection, setCollection] = useState('')
   const [quality, setQuality] = useState<Quality>('all')
   const [mobileFilters, setMobileFilters] = useState(false)
   const [editPath, setEditPath] = useState(false)
@@ -468,6 +469,45 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     setRemoval(null)
   }
 
+  // Rarity and collection options follow the active category, so a knives tab
+  // never offers weapon grades its knives cannot have.
+  const scoped = useMemo(
+    () => (kind === 'all'
+      ? items
+      : items.filter((item) => (kind === 'charms'
+        ? Boolean(item.attributes?.['299'])
+        : galleryKindOf(item, catalog.get(itemKey(item))) === kind))),
+    [items, catalog, kind],
+  )
+
+  const rarities = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const item of scoped) {
+      const entry = catalog.get(itemKey(item))?.rarity
+      if (entry?.name && !map.has(entry.name)) map.set(entry.name, entry.color)
+    }
+    return [...map].map(([name, color]) => ({ name, color })).sort(byRarity)
+  }, [scoped, catalog])
+
+  // Cases and collections come from the resolved entries, so the dropdown only
+  // lists sources the current category can actually match.
+  const collections = useMemo(() => {
+    const names = new Set<string>()
+    for (const item of scoped) {
+      const entry = catalog.get(itemKey(item))
+      const source = entry?.case ?? entry?.collection
+      if (source) names.add(source)
+    }
+    return [...names].sort((a, b) => a.localeCompare(b))
+  }, [scoped, catalog])
+
+  const showRarity = kind === 'all' || hasMeaningfulRarity(kind)
+  const activeRarity = useMemo(
+    () => (showRarity ? rarity.filter((name) => rarities.some((entry) => entry.name === name)) : []),
+    [showRarity, rarity, rarities],
+  )
+  const activeCollection = collections.includes(collection) ? collection : ''
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return items.filter((item) => {
@@ -475,7 +515,8 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
       if (kind === 'charms') {
         if (!item.attributes?.['299']) return false
       } else if (kind !== 'all' && galleryKindOf(item, resolved) !== kind) return false
-      if (rarity && resolved?.rarity?.name !== rarity) return false
+      if (activeRarity.length > 0 && !activeRarity.includes(resolved?.rarity?.name ?? '')) return false
+      if (activeCollection && (resolved?.case ?? resolved?.collection ?? '') !== activeCollection) return false
       if (quality === 'stattrak' && item.quality !== 9) return false
       if (quality === 'souvenir' && item.quality !== 12) return false
       if (quality === 'normal' && (item.quality === 9 || item.quality === 12)) return false
@@ -485,27 +526,20 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
         || itemNameTag(item).toLowerCase().includes(needle)
         || (resolved?.name ?? '').toLowerCase().includes(needle)
     })
-  }, [items, query, catalog, kind, rarity, quality])
-
-  const rarities = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const item of items) {
-      const entry = catalog.get(itemKey(item))?.rarity
-      if (entry?.name && !map.has(entry.name)) map.set(entry.name, entry.color)
-    }
-    return [...map].map(([name, color]) => ({ name, color }))
-  }, [items, catalog])
+  }, [items, query, catalog, kind, activeRarity, activeCollection, quality])
 
   const activeFilters =
     Number(query.trim().length > 0) +
     Number(kind !== 'all') +
-    Number(rarity !== '') +
+    Number(activeRarity.length > 0) +
+    Number(activeCollection !== '') +
     Number(quality !== 'all')
 
   const resetFilters = () => {
     setQuery('')
     setKind('all')
-    setRarity('')
+    setRarity([])
+    setCollection('')
     setQuality('all')
   }
 
@@ -556,9 +590,12 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     onQuery: setQuery,
     queryPlaceholder: 'search inventory',
     showSearch: true,
-    rarities,
-    rarity,
+    rarities: showRarity ? rarities : [],
+    rarity: activeRarity,
     onRarity: setRarity,
+    collections,
+    collection,
+    onCollection: setCollection,
     showQuality: true,
     quality,
     onQuality: setQuality,

@@ -4,7 +4,7 @@ import { api } from '../../lib/api'
 import type { GiveItem, SchemaState } from '../../lib/app-types'
 import {
   browseTabs, agentMatchesTeam, categoryForKind, categoryImage, isGloveWeapon, isGunWeapon, isKnifeWeapon,
-  isSkinKind, skinImage, skinSource,
+  isSkinKind, skinImage, skinSource, byRarity, hasMeaningfulRarity,
   type CategoryItem, type GameId, type Kind, type Skin,
 } from '../../lib/catalog'
 import { FilterSidebar, MobileFilters, type FilterState } from '../shell/sidebar'
@@ -37,7 +37,8 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
   const [gloveId, setGloveId] = useState(5027)
   const [agentTeam, setAgentTeam] = useState<'ct' | 't'>('ct')
   const [query, setQuery] = useState('')
-  const [rarity, setRarity] = useState('')
+  const [rarity, setRarity] = useState<string[]>([])
+  const [collection, setCollection] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [visible, setVisible] = useState(PAGE_STEP)
   const [mobileFilters, setMobileFilters] = useState(false)
@@ -124,8 +125,8 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
     return () => { cancelled = true; window.clearTimeout(timer) }
   }, [open, category, query, schema.game])
 
-  useEffect(() => { setVisible(PAGE_STEP) }, [kind, weaponId, knifeId, gloveId, query, rarity, agentTeam])
-  useEffect(() => { setRarity(''); setQuery('') }, [kind])
+  useEffect(() => { setVisible(PAGE_STEP) }, [kind, weaponId, knifeId, gloveId, query, rarity, collection, agentTeam])
+  useEffect(() => { setRarity([]); setCollection(''); setQuery('') }, [kind])
   useEffect(() => {
     if (!open) {
       setAdded(0)
@@ -143,25 +144,42 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
       const name = item.rarity?.name
       if (name && !map.has(name)) map.set(name, item.rarity?.color || '#555')
     }
-    return [...map.entries()].map(([name, color]) => ({ name, color })).sort((a, b) => a.name.localeCompare(b.name))
+    return [...map.entries()].map(([name, color]) => ({ name, color })).sort(byRarity)
   }, [skinKind, activeSkins, activeCatItems])
+
+  // Case/collection names come from the loaded skins only: the catalogue has no
+  // standalone collection index, so the list always matches what can be shown.
+  const collections = useMemo(() => {
+    if (!skinKind) return []
+    const names = new Set<string>()
+    for (const skin of activeSkins) {
+      const source = skin.case ?? skin.collection
+      if (source) names.add(source)
+    }
+    return [...names].sort((a, b) => a.localeCompare(b))
+  }, [skinKind, activeSkins])
+
+  const activeCollection = collections.includes(collection) ? collection : ''
+  const showRarity = hasMeaningfulRarity(kind)
+  const activeRarity = showRarity ? rarity : []
 
   const filteredSkins = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return activeSkins.filter((skin) => {
       if (needle && !skin.name.toLowerCase().includes(needle)) return false
-      if (rarity && (skin.rarity?.name ?? 'unknown') !== rarity) return false
+      if (activeRarity.length > 0 && !activeRarity.includes(skin.rarity?.name ?? 'unknown')) return false
+      if (activeCollection && (skin.case ?? skin.collection ?? '') !== activeCollection) return false
       return true
     })
-  }, [activeSkins, query, rarity])
+  }, [activeSkins, query, activeRarity, activeCollection])
 
   const filteredCategory = useMemo(() => {
     return activeCatItems.filter((item) => {
       if (kind === 'agents' && !agentMatchesTeam(item.name, agentTeam)) return false
-      if (rarity && (item.rarity?.name ?? 'unknown') !== rarity) return false
+      if (activeRarity.length > 0 && !activeRarity.includes(item.rarity?.name ?? 'unknown')) return false
       return true
     })
-  }, [activeCatItems, kind, agentTeam, rarity])
+  }, [activeCatItems, kind, agentTeam, activeRarity])
 
   const total = skinKind ? filteredSkins.length : filteredCategory.length
   const loading = skinKind
@@ -203,14 +221,18 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
         : kind === 'gloves'
           ? { weapons: gloves, value: gloveId, onChange: setGloveId, label: 'Gloves' }
           : undefined,
-    rarities,
-    rarity,
+    rarities: showRarity ? rarities : [],
+    rarity: activeRarity,
     onRarity: setRarity,
+    collections: skinKind ? collections : undefined,
+    collection: activeCollection,
+    onCollection: skinKind ? setCollection : undefined,
     showQuality: false,
     agentTeam: kind === 'agents' ? agentTeam : undefined,
     onAgentTeam: kind === 'agents' ? setAgentTeam : undefined,
-    onReset: () => { setQuery(''); setRarity(''); setAgentTeam('ct') },
-    activeFilters: Number(query.trim().length > 0) + Number(rarity !== '') + Number(kind === 'agents' && agentTeam !== 'ct'),
+    onReset: () => { setQuery(''); setRarity([]); setCollection(''); setAgentTeam('ct') },
+    activeFilters: Number(query.trim().length > 0) + Number(activeRarity.length > 0)
+      + Number(activeCollection !== '') + Number(kind === 'agents' && agentTeam !== 'ct'),
     resultLabel: loading ? 'loading…' : `${total} ${skinKind ? 'skins' : 'items'}`,
     ready: schema.status === 'ready',
   }
