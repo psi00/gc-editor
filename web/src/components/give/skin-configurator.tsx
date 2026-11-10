@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
 import { Input } from '../ui/input'
 import { Slider } from '../ui/slider'
 import { SafeImage } from '../common/safe-image'
+import { CommandPreview } from '../common/command-preview'
 import { StickerPicker } from './sticker-picker'
 import { KeychainPicker } from './keychain-picker'
 import { cn } from '../../lib/utils'
@@ -347,8 +348,9 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
                 <div>
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="field-label mb-0">Command preview</span>
+                    <span className="text-[11px] text-muted-foreground">the server sends this line</span>
                   </div>
-                  <pre className="log-surface">{preview}</pre>
+                  <CommandPreview command={preview} />
                 </div>
               )}
 

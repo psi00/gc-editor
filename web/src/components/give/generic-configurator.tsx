@@ -12,6 +12,7 @@ import { Checkbox } from '../ui/checkbox'
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
 import { Input } from '../ui/input'
 import { SafeImage } from '../common/safe-image'
+import { CommandPreview } from '../common/command-preview'
 import { cn } from '../../lib/utils'
 
 export type GenericSelection = {
@@ -178,7 +179,7 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
                     <span className="field-label mb-0">Command preview</span>
                     <span className="text-[11px] text-muted-foreground">server builds the real command</span>
                   </div>
-                  <pre className="log-surface">{preview}</pre>
+                  <CommandPreview command={preview} />
                 </div>
               )}
 
