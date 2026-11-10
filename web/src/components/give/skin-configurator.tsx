@@ -253,17 +253,20 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
                   </label>
                 )}
                 {!isGlove && (
-                  <label className="flex h-9 shrink-0 cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                    <Checkbox
-                      checked={souvenir}
-                      onCheckedChange={(checked) => {
-                        const next = checked === true
-                        setSouvenir(next)
-                        if (next) setStattrak('')
-                      }}
-                    />
-                    Souvenir
-                  </label>
+                  <div className="shrink-0">
+                    <span className="field-label">Quality</span>
+                    <label className="flex h-9 cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                      <Checkbox
+                        checked={souvenir}
+                        onCheckedChange={(checked) => {
+                          const next = checked === true
+                          setSouvenir(next)
+                          if (next) setStattrak('')
+                        }}
+                      />
+                      Souvenir
+                    </label>
+                  </div>
                 )}
               </div>
               {!seedValid && <p className="text-[11px] text-err-soft">Seed must be a whole number between 0 and 999.</p>}
