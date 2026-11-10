@@ -71,6 +71,8 @@ button:disabled { cursor: not-allowed; }
 .category-link.active:hover { background: hsl(var(--surface-raised)); }
 .category-link.active svg { opacity: 1; }
 .category-divider { width: 1px; height: 18px; flex: none; background: rgba(255,255,255,.08); }
+/* the catalog index has no peer tabs: a label keeps the bar from looking empty */
+.category-note { padding: 0 12px; color: hsl(var(--muted-foreground)); font-size: 11px; white-space: nowrap; }
 .live-dot { display: inline-block; width: 6px; height: 6px; flex: none; border-radius: 50%; background: hsl(var(--ok)); box-shadow: 0 0 0 3px hsl(var(--ok) / .1), 0 0 12px hsl(var(--ok) / .35); }
 .live-dot.warn { background: hsl(var(--warn)); box-shadow: 0 0 0 3px hsl(var(--warn) / .1), 0 0 12px hsl(var(--warn) / .35); }
 .live-dot.err { background: hsl(var(--err)); box-shadow: 0 0 0 3px hsl(var(--err) / .1), 0 0 12px hsl(var(--err) / .35); }

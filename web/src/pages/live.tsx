@@ -310,22 +310,10 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
     <>
       <CategoryBar
         label="Schema categories"
-        tabs={browseTabs(game)}
+        tabs={browseTabs(game).filter((tab) => tab.id !== 'all')}
+        note="Catalog index"
         value={kind}
         onChange={(id) => { setKind(id as Kind); setSkinSelection(null); setGenericSelection(null) }}
-        trailing={
-          <>
-            <span className="category-divider" aria-hidden />
-            <button
-              onClick={() => { setKind('raw'); setSkinSelection(null); setGenericSelection(null) }}
-              className={cn('category-link', kind === 'raw' && 'active')}
-              aria-current={kind === 'raw' ? 'page' : undefined}
-              aria-label="Manual entry"
-            >
-              <Terminal className="size-3.5" /><span className="hidden sm:inline">Manual</span>
-            </button>
-          </>
-        }
       />
 
       <main className="page-shell pb-16 pt-7">
