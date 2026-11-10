@@ -5,11 +5,12 @@ import {
 } from 'lucide-react'
 import { api, store } from '../lib/api'
 import { useReport } from '../lib/report'
+import { useActivity } from '../lib/activity'
 import { rconHint } from '../lib/rcon-hints'
 import type { SchemaState, GiveResponse, RconHealth } from '../lib/app-types'
 import {
   browseTabs, GAME_LABELS, isSkinKind, categoryForKind, isGunWeapon, isKnifeWeapon, isGloveWeapon,
-  skinImage, categoryImage, agentMatchesTeam, skinSource,
+  skinImage, categoryImage, agentMatchesTeam, skinSource, formatClock,
   type GameId, type Kind, type Skin, type CategoryItem, type Weapon,
 } from '../lib/catalog'
 import { CategoryBar } from '../components/shell/category-bar'
@@ -22,6 +23,7 @@ import { GenericConfigurator, type GenericSelection } from '../components/give/g
 import { Button } from '../components/ui/button'
 import { Checkbox } from '../components/ui/checkbox'
 import { Input } from '../components/ui/input'
+import { CommandPreview } from '../components/common/command-preview'
 import { cn } from '../lib/utils'
 
 const PAGE_STEP = 24
@@ -527,6 +529,7 @@ function BrowseOverview({ weapons, counts, loading, onPick }: {
 
 function RawGivePanel({ game }: { game: GameId }) {
   const report = useReport()
+  const { entries } = useActivity()
   const [def, setDef] = useState('7')
   const [countText, setCountText] = useState('1')
   const [autosave, setAutosave] = useState(true)
@@ -541,6 +544,8 @@ function RawGivePanel({ game }: { game: GameId }) {
   const count = Number(countText)
   const countValid = Number.isInteger(count) && count >= 1 && count <= 100
   const canSubmit = !submitting && !rconDisabled && defValid && countValid
+  const commandPreview = `give_item ${defValid ? defIndex : '<def_index>'}${countValid && count !== 1 ? ` ${count}` : ''}`
+  const recent = entries.filter((entry) => entry.kind === 'give').slice(0, 5)
 
   const submit = async () => {
     if (!canSubmit) return
@@ -574,8 +579,8 @@ function RawGivePanel({ game }: { game: GameId }) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="panel">
+    <div className="mx-auto grid w-full max-w-5xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="panel min-w-0">
         <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-primary">
           <Terminal className="size-3.5" />Manual entry
         </div>
@@ -611,6 +616,14 @@ function RawGivePanel({ game }: { game: GameId }) {
           </p>
         )}
 
+        <div className="mt-4">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="field-label mb-0">Command preview</span>
+            <span className="text-[11px] text-muted-foreground">the server sends this line</span>
+          </div>
+          <CommandPreview command={commandPreview} />
+        </div>
+
         <label className="mt-4 flex cursor-pointer items-center gap-2.5 text-xs text-muted-foreground">
           <Checkbox checked={autosave} onCheckedChange={(checked) => setAutosave(checked === true)} />
           Run <span className="font-mono text-[11px] text-foreground/80">save_inventory</span> after adding
@@ -635,6 +648,32 @@ function RawGivePanel({ game }: { game: GameId }) {
           <p className="mt-2 text-[11px] leading-relaxed text-warn-soft/75">{rconHint(result.ok ? result.saved ?? '' : result.raw)}</p>
         )}
       </div>
+
+      <aside className="panel" aria-label="Recent give commands">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h3 className="text-[11px] font-medium text-foreground/80">Recent give commands</h3>
+          <span className="text-[11px] text-muted-foreground">this session</span>
+        </div>
+        {recent.length === 0 ? (
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Nothing sent yet. Each give shows up here with the exact command and the GC's reply.
+          </p>
+        ) : (
+          <ul className="space-y-1.5">
+            {recent.map((entry) => (
+              <li key={entry.id} className="rounded-lg border border-white/[.06] bg-white/[.02] px-3 py-2">
+                <div className="flex items-baseline gap-2">
+                  <time dateTime={entry.at} className="shrink-0 font-mono text-[11px] text-muted-foreground">{formatClock(entry.at)}</time>
+                  <span className={cn('chip', entry.ok === false ? 'chip-err' : 'chip-ok')}>{entry.ok === false ? 'failed' : 'ok'}</span>
+                  <span className="min-w-0 flex-1 truncate text-[11px] text-foreground/80">{entry.label}</span>
+                </div>
+                {entry.detail && <pre className="mt-1 whitespace-pre-wrap break-all font-mono text-[11px] text-muted-foreground">{entry.detail}</pre>}
+                {entry.raw && <pre className="mt-0.5 whitespace-pre-wrap break-all font-mono text-[11px] text-foreground/70">{entry.raw.split('\n')[0]}</pre>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
     </div>
   )
 }
