@@ -219,9 +219,9 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
     : catLoading || (category !== null && catItemsCategory !== category)
   const error = skinKind ? skinsError : catError
   const cacheEmpty = schema.status === 'ready' && !schema.cached
-  // no catalogue, no controls: a filter panel over an empty cache only offers
+  // controls need a catalogue: a filter panel over an empty cache only offers
   // raw def indexes and a search that cannot match anything
-  const catalogChrome = schema.status === 'ready' && !schema.cached
+  const catalogChrome = schema.status === 'ready' && schema.cached
   const activeWeapon = schema.weapons.find((weapon) => weapon.def_index === activeWeaponId)
 
   const cards = useMemo<CardItem[]>(() => {
