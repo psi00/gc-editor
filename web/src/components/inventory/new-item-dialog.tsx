@@ -292,7 +292,7 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
                   )}
                   <div className="results-toolbar">
                     <div className="min-w-0 text-[11px] text-muted-foreground">
-                      {loading ? 'Loading the catalog…' : <>Showing <b className="font-medium text-foreground/75">{Math.min(visible, total)}</b> of {total} {skinKind ? 'skins' : 'items'}</>}
+                      {loading ? 'Loading the catalog…' : <><b className="font-medium text-foreground/75">{Math.min(visible, total)}</b> of {total} {skinKind ? 'skins' : 'items'} shown</>}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => setMobileFilters(true)}>

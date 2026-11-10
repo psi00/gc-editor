@@ -371,7 +371,7 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
               <div className="results-toolbar">
                 <div className="min-w-0">
                   <div className="text-[11px] text-muted-foreground">
-                    {loading ? 'Loading the catalog…' : <>Showing <b className="font-medium text-foreground/75">{Math.min(visible, total)}</b> of {total}{categoryCapped ? '+' : ''} {totalNoun}{categoryCapped ? ' (server cap)' : ''}</>}
+                    {loading ? 'Loading the catalog…' : <><b className="font-medium text-foreground/75">{Math.min(visible, total)}</b> of {total}{categoryCapped ? '+' : ''} {totalNoun} shown{categoryCapped ? ' (server cap)' : ''}</>}
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -422,7 +422,7 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
                       <Button variant="secondary" size="lg" onClick={() => setVisible((count) => count + PAGE_STEP)}>
                         Show more<ChevronDown className="size-4" />
                       </Button>
-                      <span className="text-[11px] text-muted-foreground">{total - visible} more loaded in this view</span>
+                      <span className="text-[11px] text-muted-foreground">{total - visible} more not shown yet</span>
                     </div>
                   )}
                   {categoryCapped && (
