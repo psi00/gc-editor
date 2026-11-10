@@ -244,13 +244,14 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-describedby={undefined} className="max-w-[1520px] overflow-hidden p-0">
         <div className="flex max-h-[88vh] min-h-0 flex-col">
-          <div className="flex items-start justify-between gap-4 border-b border-white/[.06] px-5 py-4 pr-14">
+          <div className="border-b border-white/[.06] px-5 py-4 pr-14">
             <DialogTitle className="flex items-center gap-2 text-lg">
-              <Plus className="size-4 text-primary" />New item
+              <Plus className="size-4 text-primary" />Add item
             </DialogTitle>
-            {added > 0 && (
-              <span className="chip chip-warn shrink-0">{added} staged</span>
-            )}
+            <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+              Pick a category, open an item to configure it, then add it. Nothing is written to
+              <span className="font-mono"> inventory.txt </span> until Save + backup.
+            </p>
           </div>
 
           <nav className="no-scrollbar flex shrink-0 gap-0.5 overflow-x-auto border-b border-white/[.06] px-3 py-1.5" aria-label="New item categories">
@@ -328,6 +329,17 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
                 </section>
               </div>
             )}
+          </div>
+
+          <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-white/[.06] px-5 py-3">
+            <span className="text-[11px] text-muted-foreground">
+              {added > 0
+                ? `${added} item${added === 1 ? '' : 's'} staged in the editor`
+                : 'Nothing staged yet — open an item to configure it first.'}
+            </span>
+            <Button variant="secondary" size="sm" className="ml-auto" onClick={() => onOpenChange(false)}>
+              Done
+            </Button>
           </div>
         </div>
 
