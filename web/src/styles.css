@@ -96,9 +96,9 @@ button:disabled { cursor: not-allowed; }
 .wear-preset { height: 26px; border: 1px solid rgba(255,255,255,.065); border-radius: 7px; background: rgba(255,255,255,.018); color: hsl(var(--muted-foreground)); font-size: 11px; transition: border-color .15s, background .15s, color .15s, transform .15s var(--ease-out); }
 .wear-preset:hover, .wear-preset.active { border-color: hsl(var(--primary) / .45); background: hsl(var(--primary) / .12); color: hsl(var(--primary-soft)); }
 .wear-preset:hover { transform: translateY(-1px); }
-.wear-slider [role="slider"] { border-color: hsl(var(--ok)); }
+/* the wear slider is the primary control: same accent as every other active state */
+.wear-slider [role="slider"] { border-color: hsl(var(--primary)); }
 .wear-slider > span:first-child { background: rgba(255,255,255,.16); }
-.wear-slider > span:first-child > span { background: rgba(9,11,15,.45); }
 
 .picker-panel { margin-top: 8px; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background: rgba(0,0,0,.18); padding: 8px; }
 .picker-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 8px; max-height: 300px; overflow-y: auto; }
@@ -167,7 +167,7 @@ button:disabled { cursor: not-allowed; }
 .skeleton-line.short { width: 45%; }
 @keyframes skeleton-pulse { 0%, 100% { opacity: .35; } 50% { opacity: .85; } }
 
-.empty-state { display: flex; min-height: 360px; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed rgba(255,255,255,.09); border-radius: 16px; background: rgba(255,255,255,.012); padding: 30px; text-align: center; }
+.empty-state { display: flex; min-height: 300px; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed rgba(255,255,255,.09); border-radius: 16px; background: rgba(255,255,255,.012); padding: 30px; text-align: center; }
 .empty-icon { display: grid; place-items: center; width: 56px; height: 56px; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; background: rgba(255,255,255,.035); color: hsl(var(--primary)); }
 
 /* configurator dialog */
