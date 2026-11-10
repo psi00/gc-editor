@@ -11,6 +11,7 @@ import { GAME_LABELS } from '../lib/catalog'
 import { Button } from '../components/ui/button'
 import { Checkbox } from '../components/ui/checkbox'
 import { Input } from '../components/ui/input'
+import { THEME_TOKENS } from '../lib/theme-tokens'
 import { cn } from '../lib/utils'
 
 type Reply = { game: GameId; command: 'ping' | 'status'; raw: string; ok: boolean }
@@ -164,8 +165,8 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
       const link = document.querySelector<HTMLLinkElement>('link[data-custom-css]')
       if (link) link.href = `/api/custom-css.css?v=${Date.now()}`
       report(
-        { kind: 'settings', label: mode === 'clear' ? 'custom css cleared' : 'custom css saved', ok: true, detail: response.path },
-        { title: mode === 'clear' ? 'Custom CSS cleared' : 'Custom CSS applied', body: `${Number(response.size ?? 0)} bytes written to ${response.path}` },
+        { kind: 'settings', label: mode === 'clear' ? 'custom css reset to default' : 'custom css saved', ok: true, detail: response.path },
+        { title: mode === 'clear' ? 'Custom CSS reset to default' : 'Custom CSS applied', body: `${Number(response.size ?? 0)} bytes written to ${response.path}` },
         'ok',
       )
       await onReloadSettings()
@@ -269,7 +270,7 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
                           onChange={(event) => setPasswords((current) => ({ ...current, [game]: event.target.value }))}
                           onBlur={() => void savePassword(game)}
                           onKeyDown={(event) => { if (event.key === 'Enter') void savePassword(game) }}
-                          placeholder={profile.hasPassword ? 'saved - type to replace' : 'rcon password'}
+                          placeholder={profile.hasPassword ? 'saved — type to replace' : 'rcon password'}
                           className="h-9 flex-1 text-xs"
                           autoComplete="new-password"
                           spellCheck={false}
@@ -359,12 +360,37 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
                 {cssBusy === 'load' ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}Reload from disk
               </Button>
               <Button variant="danger" size="sm" onClick={() => void writeCss('', 'clear')} disabled={cssBusy !== null || !css.trim()}>
-                {cssBusy === 'clear' ? <Loader2 className="size-3.5 animate-spin" /> : <Eraser className="size-3.5" />}Clear
+                {cssBusy === 'clear' ? <Loader2 className="size-3.5 animate-spin" /> : <Eraser className="size-3.5" />}Reset to default
               </Button>
               <span className="text-[11px] text-muted-foreground">
                 {cssLimit ? `${Math.round(cssLimit / 1024)} KB limit` : ''}
               </span>
             </div>
+
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              Reset writes the seeded empty stylesheet and keeps a timestamped backup. If a theme breaks the
+              layout, open <span className="font-mono text-foreground/80">/?safe=1</span> — that URL loads the app
+              without this file, so it is the way back from any theme.
+            </p>
+
+            <details className="mt-2">
+              <summary className="cursor-pointer text-[11px] text-muted-foreground transition hover:text-foreground">
+                Theme tokens ({THEME_TOKENS.length}) — set these on <span className="font-mono">:root</span>
+              </summary>
+              <ul className="log-surface mt-2 max-h-48 overflow-y-auto text-[11px]">
+                {THEME_TOKENS.map((token) => (
+                  <li key={token.name} className="flex flex-wrap items-baseline gap-x-2">
+                    <code className="text-foreground/85">{token.name}</code>
+                    <span className="text-muted-foreground">{token.value}</span>
+                    <span className="text-muted-foreground/70">{token.note}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1.5 text-[11px] text-muted-foreground/70">
+                A light theme needs <span className="font-mono">--edge: 0 0% 0%</span> and{' '}
+                <span className="font-mono">--well: 0 0% 100%</span> as well as the surface colours.
+              </p>
+            </details>
 
             {cssError && <div className="log-surface err mt-3">{cssError}</div>}
           </section>
