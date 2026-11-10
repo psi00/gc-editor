@@ -517,8 +517,8 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     const nameTag = itemNameTag(item)
     return {
       id: item.id,
-      name: nameTag ? `“${nameTag}”` : resolved?.name || `Item def ${item.def_index}`,
-      named: Boolean(nameTag),
+      name: resolved?.name || `Item def ${item.def_index}`,
+      tag: nameTag || null,
       image: resolved?.image ?? null,
       accent: resolved?.rarity?.color,
       meta: resolved ? skinSource(resolved) : undefined,

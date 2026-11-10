@@ -12,8 +12,8 @@ export type CardItem = {
   meta?: string
   badge?: { label: string; tone: 'st' | 'sv' } | null
   fallback?: string
-  /** a custom name tag renders the title in quotes and italics */
-  named?: boolean
+  /** a custom name tag stays secondary: the item keeps its own name */
+  tag?: string | null
 }
 
 type ItemCardProps = {
@@ -49,15 +49,17 @@ export function ItemCard({
 
       <div className="item-art">
         <SafeImage src={item.image} alt="" className="item-image" fallback={item.fallback} />
-        {item.badge && (
-          <span className={cn('item-badge absolute left-3 top-3', item.badge.tone === 'st' && 'st', item.badge.tone === 'sv' && 'sv')}>
-            {item.badge.label}
-          </span>
-        )}
       </div>
 
+      {item.badge && (
+        <span className={cn('item-badge', item.badge.tone === 'st' && 'st', item.badge.tone === 'sv' && 'sv')}>
+          {item.badge.label}
+        </span>
+      )}
+
       <div className="item-head">
-        <span className={cn('item-title', item.named && 'italic')} title={item.name}>{item.name}</span>
+        <span className="item-title" title={item.name}>{item.name}</span>
+        {item.tag && <span className="item-tag" title={item.tag}>“{item.tag}”</span>}
         {item.meta && <p className="item-subtitle" title={item.meta}>{item.meta}</p>}
       </div>
 
