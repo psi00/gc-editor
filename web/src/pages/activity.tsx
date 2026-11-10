@@ -110,7 +110,6 @@ export function ActivityPage() {
                 <span className={cn('chip', KIND_CLASS[entry.kind])}>{entry.kind}</span>
                 <span className="min-w-0 flex-1 truncate text-xs text-foreground/85">{entry.label}</span>
                 {count > 1 && <span className="chip" title={`${count} identical entries in a row`}>×{count}</span>}
-                {entry.ok === true && <span className="chip chip-ok">ok</span>}
                 {entry.ok === false && <span className="chip chip-err"><CircleAlert className="size-3" />failed</span>}
               </div>
               {entry.detail && <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">{entry.detail}</p>}
