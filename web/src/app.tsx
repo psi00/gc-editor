@@ -53,7 +53,7 @@ function Shell() {
       setGalleryGame(response.game === 'cs2' ? 'cs2' : 'csgo')
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
-      report({ kind: 'error', label: 'load /api/settings', raw: message, ok: false })
+      report({ kind: 'error', label: 'load settings', raw: message, ok: false })
     }
   }, [report])
 
@@ -81,14 +81,15 @@ function Shell() {
       setSchema({ status: 'ready', weapons, counts, cached, game })
       report({
         kind: 'schema',
-        label: 'schema cache loaded',
+        label: 'catalogue loaded',
         ok: true,
+        catalog: true,
         detail: `${game === 'cs2' ? 'CS2' : 'CS:GO'} · ${weapons.length} weapons · ${Object.keys(counts).length} categories${cached ? '' : ' · cache empty'}`,
       })
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
       setSchema({ status: 'error', weapons: [], counts: {}, cached: false, game, error: message })
-      report({ kind: 'error', label: 'load schema cache', raw: message, ok: false }, { title: 'Schema request failed', body: message }, 'err')
+      report({ kind: 'error', label: 'load catalogue', raw: message, ok: false }, { title: 'Schema request failed', body: message }, 'err')
     }
   }, [report])
 

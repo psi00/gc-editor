@@ -32,7 +32,7 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
   open: boolean
   onOpenChange: (open: boolean) => void
   /** When set, the item is staged into inventory.txt instead of sent over RCON. */
-  onAdd?: (item: GiveItem) => void
+  onAdd?: (item: GiveItem, name?: string) => void
   /** Charms only: hand the selected charm to the weapon editor. */
   onWeapon?: () => void
 }) {
@@ -103,7 +103,7 @@ export function GenericConfigurator({ game = 'csgo', selection, open, onOpenChan
     if (!canSubmit || count === null) return
 
     if (onAdd) {
-      onAdd(item)
+      onAdd(item, selection.item.name)
       onOpenChange(false)
       return
     }

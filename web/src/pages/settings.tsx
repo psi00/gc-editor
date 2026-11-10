@@ -384,7 +384,7 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
                   aria-label={`${GAME_LABELS[game]} directory override`}
                   className="h-9 flex-1 font-mono text-xs"
                 />
-                <Button size="sm" onClick={() => void saveGameDir(game)} disabled={savingGame !== null}>
+                <Button variant="secondary" size="sm" onClick={() => void saveGameDir(game)} disabled={savingGame !== null}>
                   {savingGame === game ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}Save
                 </Button>
               </div>

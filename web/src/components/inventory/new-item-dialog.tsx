@@ -29,7 +29,7 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   schema: SchemaState
-  onAdd: (item: GiveItem) => void
+  onAdd: (item: GiveItem, name?: string) => void
 }) {
   const [kind, setKind] = useState<Kind>('skins')
   const [weaponId, setWeaponId] = useState(7)
@@ -210,7 +210,7 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
     agentTeam: kind === 'agents' ? agentTeam : undefined,
     onAgentTeam: kind === 'agents' ? setAgentTeam : undefined,
     onReset: () => { setQuery(''); setRarity(''); setAgentTeam('ct') },
-    activeFilters: Number(query.trim().length > 0) + Number(rarity !== '') + Number(kind === 'agents'),
+    activeFilters: Number(query.trim().length > 0) + Number(rarity !== '') + Number(kind === 'agents' && agentTeam !== 'ct'),
     resultLabel: loading ? 'loading…' : `${total} ${skinKind ? 'skins' : 'items'}`,
     ready: schema.status === 'ready',
   }
@@ -235,8 +235,8 @@ export function NewItemDialog({ game, open, onOpenChange, schema, onAdd }: {
     setGenericOpen(true)
   }
 
-  const handleAdd = (item: GiveItem) => {
-    onAdd(item)
+  const handleAdd = (item: GiveItem, name?: string) => {
+    onAdd(item, name)
     setAdded((current) => current + Math.max(1, item.count ?? 1))
   }
 

@@ -10,6 +10,8 @@ export type ActivityEntry = {
   raw?: string
   ok?: boolean
   detail?: string
+  /** catalogue housekeeping that fires on ordinary navigation; hidden by default */
+  catalog?: boolean
 }
 
 type NewEntry = Omit<ActivityEntry, 'id' | 'at'>

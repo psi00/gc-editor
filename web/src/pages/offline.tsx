@@ -208,7 +208,9 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
       setError(message)
-      report({ kind: 'error', label: 'load inventory.txt', raw: message, ok: false }, { title: 'Could not load inventory', body: message }, 'err')
+      // the page states this failure inline (empty state + path strip); a toast
+      // would say the same thing a fourth time
+      report({ kind: 'error', label: 'read inventory.txt', raw: message, ok: false })
     } finally {
       setLoading(false)
     }
@@ -390,13 +392,16 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
 
   // Stage a catalog selection into the in-memory items list. IDs and inventory
   // slots continue from the current file; Save + backup writes and backs up.
-  const addFromGive = useCallback((give: GiveItem) => {
+  const addFromGive = useCallback((give: GiveItem, name?: string) => {
     const count = Math.max(1, give.count ?? 1)
+    const title = name
+      ? `${name}${count > 1 ? ` ×${count}` : ''}`
+      : `${count} item${count === 1 ? '' : 's'} (def ${give.def_index})`
     setItems((current) => [...current, ...buildInventoryItems(give, current)])
     setDirty(true)
     report(
-      { kind: 'inventory', label: `staged ${count} item${count === 1 ? '' : 's'} · def ${give.def_index}`, detail: 'not written until Save + backup' },
-      { title: `${count} item${count === 1 ? '' : 's'} added to the inventory` },
+      { kind: 'inventory', label: `Added ${title}`, detail: 'not written until Save + backup' },
+      { title: `Added ${title} to the inventory` },
       'info',
     )
   }, [report])
@@ -404,12 +409,13 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
   const stageDelete = (item: InvItem) => {
     const index = items.findIndex((entry) => entry.id === item.id)
     if (index < 0) return
+    const name = catalog.get(itemKey(item))?.name || `Item def ${item.def_index}`
     setItems((current) => current.filter((entry) => entry.id !== item.id))
-    setRemoval({ items: [{ item, index }], label: `item ${item.id}` })
+    setRemoval({ items: [{ item, index }], label: name })
     setDirty(true)
     report(
-      { kind: 'info', label: `staged removal of item ${item.id}`, detail: `def ${item.def_index} · not written until save` },
-      { title: `Item ${item.id} removed from the editor` },
+      { kind: 'info', label: `Removed ${name}`, detail: `def ${item.def_index} · not written until save` },
+      { title: `${name} removed from the editor` },
       'info',
     )
   }
@@ -433,12 +439,14 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
     const removed = items
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => ids.has(item.id))
+    const only = removed.length === 1 ? removed[0].item : null
+    const name = only ? catalog.get(itemKey(only))?.name || `Item def ${only.def_index}` : null
     setItems((current) => current.filter((item) => !ids.has(item.id)))
-    setRemoval({ items: removed, label: `${ids.size} item${ids.size === 1 ? '' : 's'}` })
+    setRemoval({ items: removed, label: name ?? `${ids.size} items` })
     setDirty(true)
     report(
-      { kind: 'info', label: `staged removal of ${ids.size} items`, detail: 'not written until save' },
-      { title: `${ids.size} items removed from the editor` },
+      { kind: 'info', label: name ? `Removed ${name}` : `Removed ${ids.size} items`, detail: 'not written until save' },
+      { title: name ? `${name} removed from the editor` : `${ids.size} items removed from the editor` },
       'info',
     )
     exitSelection()
@@ -581,7 +589,9 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
             <p className="mt-1 text-[11px] text-muted-foreground">
               {loading ? 'Reading inventory.txt…' : `${items.length} item${items.length === 1 ? '' : 's'}`}
               {' · '}
-              {dirty ? <span className="text-warn-soft">unsaved edits</span> : 'in sync with disk'}
+              {error
+                ? <span className="text-err-soft">no file at this path</span>
+                : dirty ? <span className="text-warn-soft">unsaved edits</span> : 'in sync with disk'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -621,7 +631,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
           </div>
         )}
 
-        {error && <div className="log-surface err mt-3">{error}</div>}
+        {error && items.length > 0 && <div className="log-surface err mt-3">{error}</div>}
 
         {warnings.length > 0 && (
           <div className="mt-3 rounded-xl border border-warn/25 bg-warn/[.06] p-3">
@@ -638,7 +648,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
         {removal && (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/[.055] px-3 py-2">
             <span className="text-[11px] font-medium text-foreground">
-              Removed {removal.items.length} item{removal.items.length === 1 ? '' : 's'} from the editor
+              Removed {removal.items.length === 1 ? removal.label : `${removal.items.length} items`} from the editor
             </span>
             <Button variant="secondary" size="sm" onClick={undoRemoval}>
               <Undo2 className="size-3.5" />Undo
@@ -658,7 +668,12 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
           <EmptyState
             icon={<CircleAlert className="size-6" />}
             title="Could not read inventory.txt"
-            action={<Button variant="secondary" onClick={() => void load(path)}><RotateCcw className="size-4" />Retry</Button>}
+            action={
+              <>
+                <Button onClick={() => setEditPath(true)}><FolderOpen className="size-4" />Change path</Button>
+                <Button variant="secondary" onClick={() => void load(path)}><RotateCcw className="size-4" />Retry</Button>
+              </>
+            }
           >{error}</EmptyState>
         </div>
       ) : items.length === 0 ? (
@@ -702,7 +717,7 @@ export function OfflinePage({ game, settings, schema, onDirtyChange }: {
                   <button onClick={() => setView('grid')} aria-label="Grid view" aria-pressed={view === 'grid'} className={cn('view-button', view === 'grid' && 'active')}><Grid2X2 /></button>
                   <button onClick={() => setView('list')} aria-label="List view" aria-pressed={view === 'list'} className={cn('view-button', view === 'list' && 'active')}><List /></button>
                 </div>
-                <Button size="sm" onClick={() => setNewItemOpen(true)}>
+                <Button variant="secondary" size="sm" onClick={() => setNewItemOpen(true)}>
                   <Plus className="size-3.5" />New item
                 </Button>
                 {!selecting && (

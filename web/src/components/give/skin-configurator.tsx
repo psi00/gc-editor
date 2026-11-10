@@ -36,7 +36,7 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
   open: boolean
   onOpenChange: (open: boolean) => void
   /** When set, the item is staged into inventory.txt instead of sent over RCON. */
-  onAdd?: (item: GiveItem) => void
+  onAdd?: (item: GiveItem, name?: string) => void
   /** Charm preselected from the Charms tab. */
   initialKeychain?: string
 }) {
@@ -132,7 +132,7 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
     if (!canSubmit) return
 
     if (onAdd) {
-      onAdd(item)
+      onAdd(item, selection.name)
       onOpenChange(false)
       return
     }

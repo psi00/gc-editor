@@ -98,7 +98,7 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
         setSkinsWeaponId(activeWeaponId)
         const named = list.find((skin) => skin.name.includes(' | '))
         const weaponName = named ? named.name.split(' | ')[0] : `weapon ${activeWeaponId}`
-        report({ kind: 'schema', label: `${weaponName} skins loaded`, ok: true, detail: `${list.length} skins` })
+        report({ kind: 'schema', label: `${weaponName} skins loaded`, ok: true, catalog: true, detail: `${list.length} skins` })
       })
       .catch((cause) => {
         if (cancelled) return
@@ -131,6 +131,7 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
             kind: 'schema',
             label: `${category} loaded`,
             ok: true,
+            catalog: true,
             detail: `${list.length} rows${list.length >= CATEGORY_LIMIT ? ` (server cap ${CATEGORY_LIMIT})` : ''}`,
           })
         }
@@ -195,6 +196,9 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
     : catLoading || (category !== null && catItemsCategory !== category)
   const error = skinKind ? skinsError : catError
   const cacheEmpty = schema.status === 'ready' && !schema.cached
+  // no catalogue, no controls: a filter panel over an empty cache only offers
+  // raw def indexes and a search that cannot match anything
+  const catalogChrome = schema.status === 'ready' && !schema.cached
   const activeWeapon = schema.weapons.find((weapon) => weapon.def_index === activeWeaponId)
 
   const cards = useMemo<CardItem[]>(() => {
@@ -220,7 +224,8 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
   const activeFilters =
     Number((skinKind ? skinQuery : catQuery).trim().length > 0) +
     Number(rarity !== '') +
-    Number(kind === 'agents')
+    // CT is the default team, not a filter the user chose
+    Number(kind === 'agents' && agentTeam !== 'ct')
 
   const totalNoun = skinKind ? 'skins' : 'items'
   const resultLabel = loading
@@ -281,6 +286,9 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
     setGenericOpen(true)
   }
 
+  const prefetchCommand = game === 'cs2' ? 'npm run prefetch-images-cs2' : 'npm run prefetch-images'
+  const cacheDirs = game === 'cs2' ? ['data/cs2/', 'imgs/cs2/'] : ['data/', 'imgs/']
+
   const schemaNotice = schema.status === 'error' ? (
     <EmptyState
       icon={<Database className="size-6" />}
@@ -301,8 +309,11 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
       }
     >
       <p>Run this once while online to fill the catalogue:</p>
-      <pre className="log-surface mt-3 text-left">{'npm run fetch-schema\nnpm run prefetch-images'}</pre>
-      <p className="mt-2 text-xs">Both write to gitignored <span className="font-mono">data/</span> and <span className="font-mono">imgs/</span>. Nothing is fetched at runtime.</p>
+      <pre className="log-surface mt-3 text-left">{`npm run fetch-schema\n${prefetchCommand}`}</pre>
+      <p className="mt-2 text-xs">
+        Both write to gitignored <span className="font-mono">{cacheDirs[0]}</span> and{' '}
+        <span className="font-mono">{cacheDirs[1]}</span>. Nothing is fetched at runtime.
+      </p>
     </EmptyState>
   ) : null
 
@@ -354,8 +365,8 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
             />
           )
         ) : (
-          <div className="workspace">
-            <FilterSidebar state={filterState} />
+          <div className={cn('workspace', !catalogChrome && 'block')}>
+            {catalogChrome && <FilterSidebar state={filterState} />}
 
             <section className="min-w-0 flex-1" aria-label="Catalog results">
               {pendingCharm && (
@@ -368,23 +379,25 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
                   </Button>
                 </div>
               )}
-              <div className="results-toolbar">
-                <div className="min-w-0">
-                  <div className="text-[11px] text-muted-foreground">
-                    {loading ? 'Loading the catalog…' : <><b className="font-medium text-foreground/75">{Math.min(visible, total)}</b> of {total}{categoryCapped ? '+' : ''} {totalNoun} shown{categoryCapped ? ' (server cap)' : ''}</>}
+              {catalogChrome && (
+                <div className="results-toolbar">
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-muted-foreground">
+                      {loading ? 'Loading the catalog…' : <><b className="font-medium text-foreground/75">{Math.min(visible, total)}</b> of {total}{categoryCapped ? '+' : ''} {totalNoun} shown{categoryCapped ? ' (server cap)' : ''}</>}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => setMobileFilters(true)}>
+                      <SlidersHorizontal className="size-3.5" />Filters
+                      {activeFilters > 0 && <span className="filter-count">{activeFilters}</span>}
+                    </Button>
+                    <div className="hidden rounded-lg border border-white/[.075] bg-white/[.035] p-0.5 sm:flex">
+                      <button onClick={() => setView('grid')} aria-label="Grid view" aria-pressed={view === 'grid'} className={cn('view-button', view === 'grid' && 'active')}><Grid2X2 /></button>
+                      <button onClick={() => setView('list')} aria-label="List view" aria-pressed={view === 'list'} className={cn('view-button', view === 'list' && 'active')}><List /></button>
+                    </div>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => setMobileFilters(true)}>
-                    <SlidersHorizontal className="size-3.5" />Filters
-                    {activeFilters > 0 && <span className="filter-count">{activeFilters}</span>}
-                  </Button>
-                  <div className="hidden rounded-lg border border-white/[.075] bg-white/[.035] p-0.5 sm:flex">
-                    <button onClick={() => setView('grid')} aria-label="Grid view" aria-pressed={view === 'grid'} className={cn('view-button', view === 'grid' && 'active')}><Grid2X2 /></button>
-                    <button onClick={() => setView('list')} aria-label="List view" aria-pressed={view === 'list'} className={cn('view-button', view === 'list' && 'active')}><List /></button>
-                  </div>
-                </div>
-              </div>
+              )}
 
               {schema.status === 'loading' && <ItemGrid items={[]} view={view} loading onOpen={() => undefined} />}
 
@@ -406,11 +419,15 @@ export function LivePage({ game, schema, onReloadSchema, rconHealth, onOpenSetti
                 <EmptyState
                   icon={<Images className="size-6" />}
                   title={kind === 'gloves' ? 'No gloves match' : 'Nothing matches those filters'}
-                  action={<Button variant="secondary" onClick={resetFilters}><RotateCcw className="size-4" />Clear filters</Button>}
+                  action={<Button variant="secondary" onClick={resetFilters}><RotateCcw className="size-4" />Reset filters</Button>}
                 >
                   {categoryCapped
                     ? 'The category is capped at 500 rows per request — narrow the search instead of clearing it.'
-                    : 'Adjust the weapon, rarity, or search text.'}
+                    : kind === 'agents'
+                      ? 'Try the other team, a rarity, or a different search.'
+                      : skinKind
+                        ? 'Adjust the weapon, rarity, or search text.'
+                        : 'Adjust the rarity or search text.'}
                 </EmptyState>
               )}
 

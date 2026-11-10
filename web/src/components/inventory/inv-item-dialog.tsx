@@ -359,10 +359,10 @@ export function InventoryItemDialog({
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-2">
-              <Button variant="danger" onClick={onDelete}>
+              <Button variant="danger" size="sm" onClick={onDelete}>
                 <Trash2 className="size-4" />Delete item
               </Button>
-              <Button variant="secondary" className="ml-auto" onClick={onClose}>
+              <Button className="ml-auto" onClick={onClose}>
                 <X className="size-4" />Done
               </Button>
             </div>
