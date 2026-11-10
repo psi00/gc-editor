@@ -15,6 +15,16 @@ import { cn } from '../lib/utils'
 
 type Reply = { game: GameId; command: 'ping' | 'status'; raw: string; ok: boolean }
 
+/**
+ * The resolved table repeats the same install root a dozen times. Show the
+ * meaningful tail and keep the full value in the title attribute.
+ */
+export function tailPath(value: string, keep = 3) {
+  const parts = value.split(/[\\/]+/).filter(Boolean)
+  if (parts.length <= keep + 1) return value.replace(/\//g, '\\')
+  return `…\\${parts.slice(-keep).join('\\')}`
+}
+
 export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus }: {
   settings: SettingsInfo | null
   onReloadSettings: () => Promise<void>
@@ -169,7 +179,7 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
   }
 
   const paths: { label: string; value: string | null; exists?: boolean | null }[] = settings ? [
-    { label: 'gallery catalog', value: GAME_LABELS[settings.game] },
+    { label: 'catalog game', value: GAME_LABELS[settings.game] },
     { label: 'game dir (CS:GO)', value: settings.games?.csgo?.gameDir ?? settings.gameDirs?.csgo ?? null },
     { label: 'game dir (CS2)', value: settings.games?.cs2?.gameDir ?? settings.gameDirs?.cs2 ?? null },
     { label: 'inventory.txt', value: settings.inventoryTxt, exists: settings.inventoryExists },
@@ -337,8 +347,8 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
               onChange={(event) => setCss(event.target.value)}
               spellCheck={false}
               aria-label="Custom CSS"
-              placeholder=":root { --primary: 280 90% 62%; }"
-              className="log-surface mt-3 min-h-64 w-full flex-1 resize-y"
+              placeholder="/* example - type your own */ :root { --primary: 280 90% 62%; }"
+              className="log-surface mt-3 min-h-64 w-full flex-1 resize-y placeholder:text-white/20"
             />
 
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -370,6 +380,7 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
                   value={dirs[game]}
                   onChange={(event) => setDirs((current) => ({ ...current, [game]: event.target.value }))}
                   placeholder={settings?.games?.[game]?.gameDir ?? settings?.gameDirs?.[game] ?? 'absolute path to game dir'}
+                  title={dirs[game] || settings?.games?.[game]?.gameDir || settings?.gameDirs?.[game] || undefined}
                   aria-label={`${GAME_LABELS[game]} directory override`}
                   className="h-9 flex-1 font-mono text-xs"
                 />
@@ -390,7 +401,11 @@ export function SettingsPage({ settings, onReloadSettings, status, onCheckStatus
                 {paths.map((entry) => (
                   <tr key={entry.label}>
                     <td className="w-28 whitespace-nowrap text-muted-foreground">{entry.label}</td>
-                    <td className="break-all font-mono text-[11px]" title={entry.value ?? undefined}>{entry.value ?? <span className="text-muted-foreground">not resolved</span>}</td>
+                    <td className="font-mono text-[11px]" title={entry.value ?? undefined}>
+                      {entry.value
+                        ? <span className="text-foreground/80">{tailPath(entry.value)}</span>
+                        : <span className="text-muted-foreground">not resolved</span>}
+                    </td>
                     <td className="w-14 text-right">
                       {entry.exists === false && <span className="chip chip-err">missing</span>}
                     </td>
