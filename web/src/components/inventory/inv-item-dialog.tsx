@@ -362,7 +362,7 @@ export function InventoryItemDialog({
               <Button variant="danger" onClick={onDelete}>
                 <Trash2 className="size-4" />Delete item
               </Button>
-              <Button variant="secondary" onClick={onClose}>
+              <Button variant="secondary" className="ml-auto" onClick={onClose}>
                 <X className="size-4" />Done
               </Button>
             </div>
