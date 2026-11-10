@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { Gem, Sticker, Trash2, X } from 'lucide-react'
+import { Gem, Plus, Sticker, Trash2, X } from 'lucide-react'
 import type { InvItem } from '../../lib/app-types'
 import { itemPaint, type ResolvedInventory } from '../../lib/inventory-catalog'
 import { formatWear, categoryImage, isGloveDef, rarityLabel, round4, wearBand, wearBandId, WEAR_PRESETS, type GameId } from '../../lib/catalog'
@@ -269,7 +269,7 @@ export function InventoryItemDialog({
                       >
                         {id
                           ? <SafeImage src={categoryImage('stickers', id)} alt={`Sticker ${id}`} fallback={id} />
-                          : <span className="slot-index">{index + 1}</span>}
+                          : <><span className="slot-index">{index + 1}</span><Plus className="size-3.5" /></>}
                       </button>
                     ))}
                     {game === 'cs2' && (isWeapon || isCharmItem) && (

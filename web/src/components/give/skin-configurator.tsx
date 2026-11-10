@@ -301,7 +301,7 @@ export function SkinConfigurator({ game = 'csgo', selection, open, onOpenChange,
                       >
                         {id
                           ? <SafeImage src={categoryImage('stickers', id)} alt={`Sticker ${id}`} fallback={id} />
-                          : <span className="slot-index">{index + 1}</span>}
+                          : <><span className="slot-index">{index + 1}</span><Plus className="size-3.5" /></>}
                       </button>
                     ))}
                     {isCs2 && (

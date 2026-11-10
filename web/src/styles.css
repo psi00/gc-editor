@@ -193,7 +193,8 @@ button:disabled { cursor: not-allowed; }
 .sticker-slot { position: relative; aspect-ratio: 1 / 1; border: 1px dashed rgba(255,255,255,.14); border-radius: 9px; background: hsl(var(--surface-sunken)); color: hsl(var(--muted-foreground)); cursor: pointer; display: grid; place-items: center; padding: 4px; overflow: hidden; font-size: 11px; transition: border-color .15s, transform .15s var(--ease-out); }
 .sticker-slot:hover { border-color: rgba(255,255,255,.3); transform: translateY(-1px); }
 .sticker-slot.active { border-color: hsl(var(--primary)); border-style: solid; }
-.sticker-slot .slot-index { color: rgba(255,255,255,.42); font-family: "Roboto Mono", Consolas, monospace; font-size: 11px; }
+.sticker-slot .slot-index { position: absolute; top: 2px; left: 5px; color: rgba(255,255,255,.42); font-family: "Roboto Mono", Consolas, monospace; font-size: 10px; }
+.sticker-slot > svg { color: rgba(255,255,255,.45); }
 .sticker-slot img { width: 100%; height: 100%; object-fit: contain; }
 .sticker-slot .art-fallback { font-size: 11px; }
 .sticker-panel { margin-top: 8px; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background: rgba(0,0,0,.18); padding: 8px; }
